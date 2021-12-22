@@ -1,0 +1,2 @@
+# when adding entries here, also add them to .npmignore (usually)
+/node_modules/
