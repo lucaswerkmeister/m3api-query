@@ -59,6 +59,40 @@ function getResponsePageByTitle( response, title ) {
 	return null;
 }
 
+/**
+ * Get the page with the given page ID out of an API response.
+ *
+ * @param {Object} response A full response, as returned by {@link Session#request}.
+ * @param {string|number} pageId The page ID to look for, a positive integer.
+ * @return {Object|null} The page with the given page ID,
+ * or null if no such page was found.
+ * A null return likely means a mismatch between request parameters and page ID;
+ * if a request for this page ID was made, but no such page exists,
+ * then the response will still contain a page object (and this function will return it),
+ * with a key indicating that the page is missing.
+ * Otherwise, the contents of the page object will depend
+ * on the parameters with which the request was made,
+ * especially the prop parameter.
+ */
+function getResponsePageByPageId( response, pageId ) {
+	if ( typeof pageId === 'number' ) {
+		pageId = pageId.toString();
+	}
+
+	const pages = response.query.pages || {};
+	if ( Array.isArray( pages ) ) {
+		for ( const page of pages ) {
+			if ( pageId === page.pageid.toString() ) {
+				return page;
+			}
+		}
+		return null;
+	} else {
+		return response.query.pages[ pageId ] || null;
+	}
+}
+
 export {
 	getResponsePageByTitle,
+	getResponsePageByPageId,
 };

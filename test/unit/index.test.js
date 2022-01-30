@@ -2,6 +2,7 @@
 
 import {
 	getResponsePageByTitle,
+	getResponsePageByPageId,
 } from '../../index.js';
 import chai, { expect } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
@@ -147,6 +148,60 @@ describe( 'getResponsePageByTitle', () => {
 		const page = { title, invalid: true };
 		const response = { query: { pages: [ page ] } };
 		expect( getResponsePageByTitle( response, title ) ).to.equal( page );
+	} );
+
+} );
+
+describe( 'getResponsePageByPageId', () => {
+
+	it( 'finds page with ID, formatversion=1', () => {
+		const pageid = 123;
+		const page = { pageid };
+		const unrelatedPage = { pageid: 456 };
+		const response = { query: { pages: { 456: unrelatedPage, [ pageid ]: page } } };
+		expect( getResponsePageByPageId( response, pageid ) ).to.equal( page );
+	} );
+
+	it( 'finds page with ID, formatversion=2', () => {
+		const pageid = 123;
+		const page = { pageid };
+		const unrelatedPage = { pageid: 456 };
+		const response = { query: { pages: [ unrelatedPage, page ] } };
+		expect( getResponsePageByPageId( response, pageid ) ).to.equal( page );
+	} );
+
+	it( 'does not find page with different ID, formatversion=1', () => {
+		const pageid = 123;
+		const page = { pageid };
+		const response = { query: { pages: { [ pageid ]: page } } };
+		const inputPageId = 456;
+		expect( getResponsePageByPageId( response, inputPageId ) ).to.be.null;
+	} );
+
+	it( 'does not find page with different ID, formatversion=2', () => {
+		const pageid = 123;
+		const page = { pageid };
+		const response = { query: { pages: [ page ] } };
+		const inputPageId = 456;
+		expect( getResponsePageByPageId( response, inputPageId ) ).to.be.null;
+	} );
+
+	for ( const paramType of [ String, Number ] ) {
+		for ( const responseType of [ String, Number ] ) {
+			it( `finds page with ${responseType.name} ID using ${paramType.name} ID`, () => {
+				const pageid = 123;
+				const page = { pageid: responseType( pageid ) };
+				const response = { query: { pages: [ page ] } };
+				expect( getResponsePageByPageId( response, paramType( pageid ) ) ).to.equal( page );
+			} );
+		}
+	}
+
+	it( 'returns missing page', () => {
+		const pageid = 123;
+		const page = { pageid, missing: true };
+		const response = { query: { pages: [ page ] } };
+		expect( getResponsePageByPageId( response, pageid ) ).to.equal( page );
 	} );
 
 } );
