@@ -28,7 +28,9 @@
  * especially the prop parameter.
  */
 function getResponsePageByTitle( response, title ) {
-	for ( const normalized of response.query.normalized || [] ) {
+	const query = response.query || {};
+
+	for ( const normalized of query.normalized || [] ) {
 		if ( title === normalized.from ) {
 			title = normalized.to;
 			break;
@@ -37,7 +39,7 @@ function getResponsePageByTitle( response, title ) {
 
 	const visitedRedirects = new Set();
 	redirectLoop: do {
-		for ( const redirect of response.query.redirects || [] ) {
+		for ( const redirect of query.redirects || [] ) {
 			if ( title === redirect.from ) {
 				visitedRedirects.add( redirect.from );
 				title = redirect.to;
@@ -47,7 +49,7 @@ function getResponsePageByTitle( response, title ) {
 		break;
 	} while ( !visitedRedirects.has( title ) );
 
-	let pages = response.query.pages || [];
+	let pages = query.pages || [];
 	if ( !Array.isArray( pages ) ) {
 		pages = Object.values( pages );
 	}
@@ -79,7 +81,9 @@ function getResponsePageByPageId( response, pageId ) {
 		pageId = pageId.toString();
 	}
 
-	const pages = response.query.pages || {};
+	const query = response.query || {};
+
+	const pages = query.pages || {};
 	if ( Array.isArray( pages ) ) {
 		for ( const page of pages ) {
 			if ( pageId === page.pageid.toString() ) {
@@ -88,7 +92,7 @@ function getResponsePageByPageId( response, pageId ) {
 		}
 		return null;
 	} else {
-		return response.query.pages[ pageId ] || null;
+		return pages[ pageId ] || null;
 	}
 }
 

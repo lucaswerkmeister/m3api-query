@@ -150,6 +150,11 @@ describe( 'getResponsePageByTitle', () => {
 		expect( getResponsePageByTitle( response, title ) ).to.equal( page );
 	} );
 
+	it( 'handles empty response', () => {
+		const response = { batchcomplete: true /* no query */ };
+		expect( getResponsePageByTitle( response, 'Title' ) ).to.be.null;
+	} );
+
 } );
 
 describe( 'getResponsePageByPageId', () => {
@@ -202,6 +207,11 @@ describe( 'getResponsePageByPageId', () => {
 		const page = { pageid, missing: true };
 		const response = { query: { pages: [ page ] } };
 		expect( getResponsePageByPageId( response, pageid ) ).to.equal( page );
+	} );
+
+	it( 'handles empty response', () => {
+		const response = { batchcomplete: true /* no query */ };
+		expect( getResponsePageByPageId( response, 123 ) ).to.be.null;
 	} );
 
 } );
