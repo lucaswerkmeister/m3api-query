@@ -148,10 +148,85 @@ function makeParamsWithTitle( params, title ) {
 }
 
 /**
+ * Merge the incremental object into the base one.
+ *
+ * @private
+ * @param {Object} base
+ * @param {Object} incremental
+ * @param {string} [basePath] Path to the object, for error reporting.
+ */
+function mergeObjects( base, incremental, basePath = '' ) {
+	function error( path, message ) {
+		return new Error(
+			`Error merging objects from two responses at ${path}: ${message}\n\n` +
+				'This is probably a bug, please report it at ' +
+				'<https://github.com/lucaswerkmeister/m3api-query/issues/>.',
+		);
+	}
+
+	for ( const [ key, incrementalValue ] of Object.entries( incremental ) ) {
+		if ( !Object.prototype.hasOwnProperty.call( base, key ) ) {
+			base[ key ] = incrementalValue;
+			continue;
+		}
+
+		const baseValue = base[ key ];
+		const baseType = typeof baseValue;
+		const incrementalType = typeof incrementalValue;
+		const path = basePath ? `${basePath}.${key}` : key;
+
+		if ( baseValue === null ) {
+			if ( incrementalValue !== null ) {
+				throw error( path, `Cannot merge null with non-null (${incrementalType})` );
+			}
+
+			continue;
+		}
+
+		if ( Array.isArray( baseValue ) ) {
+			if ( !Array.isArray( incrementalValue ) ) {
+				throw error( path, `Cannot merge array with non-array (${incrementalType})` );
+			}
+
+			base[ key ] = [ ...baseValue, ...incrementalValue ];
+			continue;
+		}
+
+		if ( baseType === 'object' ) {
+			if ( Array.isArray( incrementalValue ) ) {
+				throw error( path, 'Cannot merge object with array' );
+			}
+
+			if ( incrementalType === 'object' ) {
+				mergeObjects( baseValue, incrementalValue, path );
+				continue;
+			}
+
+			throw error( path, `Cannot merge object with non-object (${incrementalType})` );
+		}
+
+		if ( baseType === 'string' || baseType === 'number' || baseType === 'boolean' ) {
+			if ( incrementalType !== baseType ) {
+				throw error( path, `Cannot merge ${baseType} (${baseValue}) with non-${baseType} (${incrementalType})` );
+			}
+
+			if ( baseValue !== incrementalValue ) {
+				throw error( path, `Cannot merge different ${baseType}s (${baseValue} != ${incrementalValue})` );
+			}
+
+			continue;
+		}
+
+		throw error( path, `Unexpected type ${baseType}` );
+	}
+}
+
+/**
  * Make a single request for the given page and return it.
  *
  * The page might be incomplete due to limitations on the overall response size,
  * and continuation may be required to acquire the complete page.
+ * Usually, you want to use {@link queryFullPageByTitle} instead.
  *
  * @param {Session} session An API session.
  * @param {string} title The title of the page to query.
@@ -174,6 +249,7 @@ async function queryPartialPageByTitle( session, title, params = {}, options = {
  *
  * The individual pages might be incomplete, but once iteration finishes,
  * all the information should have been returned somewhere.
+ * See also {@link queryFullPageByTitle}, which merges the partial pages for you.
  *
  * @param {Session} session An API session.
  * @param {string} title The title of the page to query.
@@ -197,9 +273,49 @@ async function * queryIncrementalPageByTitle( session, title, params = {}, optio
 	}
 }
 
+/**
+ * Query for the full data of the given page and return it.
+ *
+ * Since a single API request may return incomplete data,
+ * this function will automatically follow continuation as needed
+ * and merge the resulting pages into a single object, which it returns.
+ *
+ * Be careful when using this with prop=revisions:
+ * pages can have a large number of revisions,
+ * and trying to collect them all may take a long time,
+ * or even make the process run out of memory before finishing.
+ * The rvlimit parameter does not help with this,
+ * as it only limits the number of revisions per request,
+ * but does not stop continuation.
+ * Use rvstart/rvend/rvstartid/rvendid to limit the range of revisions,
+ * or use {@link queryIncrementalPageByTitle} instead of this function
+ * and stop iterating once you’ve received enough revisions.
+ *
+ * @param {Session} session An API session.
+ * @param {string} title The title of the page to query.
+ * @param {Object} [params] Other request parameters.
+ * You will usually want to specify at least the prop parameter.
+ * This may include the titles parameter,
+ * in which case the given title will be added if necessary.
+ * @param {Object} [options] Request options.
+ * @return {Object} The full data of the page with the given title.
+ * (The data included will depend on the prop paramater –
+ * “full” means that partial responses are merged,
+ * not that the object includes all the information about the page
+ * that MediaWiki could possibly return.)
+ */
+async function queryFullPageByTitle( session, title, params = {}, options = {} ) {
+	const page = {};
+	for await ( const incr of queryIncrementalPageByTitle( session, title, params, options ) ) {
+		mergeObjects( page, incr );
+	}
+	return page;
+}
+
 export {
 	getResponsePageByTitle,
 	getResponsePageByPageId,
 	queryPartialPageByTitle,
 	queryIncrementalPageByTitle,
+	queryFullPageByTitle,
 };
