@@ -121,6 +121,13 @@ function makeParams( params ) {
  * @return {Object}
  */
 function makeParamsWithTitle( params, title ) {
+	if ( params.generator !== undefined ) {
+		throw new RangeError(
+			'params.titles cannot be used with generator ' +
+				'(titles becomes the input for the generator)',
+		);
+	}
+
 	let titles = params.titles;
 	if ( titles instanceof Set ) {
 		titles = new Set( titles );

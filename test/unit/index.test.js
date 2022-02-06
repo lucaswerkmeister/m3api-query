@@ -289,6 +289,13 @@ describe( 'queryPartialPageByTitle', () => {
 			.to.be.rejected;
 	} );
 
+	it( 'disallows generator in params', async () => {
+		const title = 'Title';
+		const session = new BaseTestSession();
+		await expect( queryPartialPageByTitle( session, title, { generator: 'links' } ) )
+			.to.be.rejected;
+	} );
+
 	for ( const [ type, params ] of [
 		[ 'set', ( title ) => ( { titles: set( title ) } ) ],
 		[ 'array', ( title ) => ( { titles: [ title ] } ) ],
