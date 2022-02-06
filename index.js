@@ -312,10 +312,55 @@ async function queryFullPageByTitle( session, title, params = {}, options = {} )
 	return page;
 }
 
+/**
+ * Query for the full data of a collection of pages,
+ * yielding one full page at a time.
+ *
+ * Particularly useful with generators,
+ * which may produce more pages than a given prop may handle,
+ * so a single request may contain pages with incomplete data.
+ *
+ * @param {Session} session An API session.
+ * @param {Object} params Request parameters.
+ * Most useful with a generator, its parameters (all prefixed with g),
+ * and then a prop parameter to determine the properties of each returned page.
+ * Can also be used with titles/pageids/revids, though.
+ * @param {Object} [options] Request options.
+ * @return {Object} The full data of each returned page.
+ * (The data included will depend on the prop paramater –
+ * “full” means that partial responses are merged,
+ * not that the object includes all the information about the page
+ * that MediaWiki could possibly return.)
+ */
+async function * queryFullPages( session, params, options = {} ) {
+	params = { ...params, action: 'query' };
+	const batch = new Map();
+	for await ( const response of session.requestAndContinue( params, options ) ) {
+		let pages = ( response.query || {} ).pages || [];
+		if ( !Array.isArray( pages ) ) {
+			pages = Object.values( pages );
+		}
+
+		for ( const page of pages ) {
+			if ( batch.has( page.pageid ) ) {
+				mergeObjects( batch.get( page.pageid ), page );
+			} else {
+				batch.set( page.pageid, page );
+			}
+		}
+
+		if ( 'batchcomplete' in response ) {
+			yield * batch.values();
+			batch.clear();
+		}
+	}
+}
+
 export {
 	getResponsePageByTitle,
 	getResponsePageByPageId,
 	queryPartialPageByTitle,
 	queryIncrementalPageByTitle,
 	queryFullPageByTitle,
+	queryFullPages,
 };

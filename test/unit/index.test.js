@@ -7,6 +7,7 @@ import {
 	queryPartialPageByTitle,
 	queryIncrementalPageByTitle,
 	queryFullPageByTitle,
+	queryFullPages,
 } from '../../index.js';
 import chai, { expect } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
@@ -632,6 +633,84 @@ describe( 'queryFullPageByTitle', () => {
 			} );
 		}
 
+	} );
+
+} );
+
+describe( 'queryFullPages', () => {
+
+	it( 'follows continuation and returns full pages', async () => {
+		const session = sequentialGetSession( [
+			{
+				expectedParams: { action: 'query', generator: 'ap', prop: 'i|d' },
+				response: { query: { pages: [
+					{ pageid: 1, contentmodel: 'wikitext', description: 'Page 1' },
+					{ pageid: 2, contentmodel: 'wikitext' },
+				] }, continue: { ic: '-', dc: '2' } },
+			},
+			{
+				expectedParams: { action: 'query', generator: 'ap', prop: 'i|d', ic: '-', dc: '2' },
+				response: { query: { pages: [
+					{ pageid: 1 },
+					{ pageid: 2, description: 'Page 2' },
+				] }, continue: { gapc: '3' }, batchcomplete: true },
+			},
+			{
+				expectedParams: { action: 'query', generator: 'ap', prop: 'i|d', gapc: '3' },
+				response: { query: { pages: [
+					{ pageid: 3, contentmodel: 'wikitext', description: 'Page 3' },
+					{ pageid: 4 },
+				] }, continue: { gapc: '3', ic: '4', dc: '4' } },
+			},
+			{
+				expectedParams: { action: 'query', generator: 'ap', prop: 'i|d', gapc: '3', ic: '4', dc: '4' },
+				response: { query: { pages: [
+					{ pageid: 3 },
+					{ pageid: 4, contentmodel: 'wikitext', description: 'Page 4' },
+				] }, batchcomplete: true },
+			},
+		] );
+
+		let iteration = 0;
+		for await ( const page of queryFullPages( session, {
+			generator: 'ap', // “allpages”, abbreviated for shorter (one-line) expectedParams above
+			prop: [ 'i', 'd' ], // “info” and “description”, likewise abbreviated
+		} ) ) {
+			switch ( ++iteration ) {
+				case 1:
+					expect( page ).to.eql( {
+						pageid: 1,
+						contentmodel: 'wikitext',
+						description: 'Page 1',
+					} );
+					break;
+				case 2:
+					expect( page ).to.eql( {
+						pageid: 2,
+						contentmodel: 'wikitext',
+						description: 'Page 2',
+					} );
+					break;
+				case 3:
+					expect( page ).to.eql( {
+						pageid: 3,
+						contentmodel: 'wikitext',
+						description: 'Page 3',
+					} );
+					break;
+				case 4:
+					expect( page ).to.eql( {
+						pageid: 4,
+						contentmodel: 'wikitext',
+						description: 'Page 4',
+					} );
+					break;
+				default:
+					throw new Error( `Unexpected iteration #${iteration}` );
+			}
+		}
+
+		expect( iteration ).to.equal( 4 );
 	} );
 
 } );

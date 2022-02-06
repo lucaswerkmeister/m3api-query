@@ -45,6 +45,45 @@ If the API doesn’t return the full page information in a single response,
 the function automatically follows continuation
 and merges the responses back into a single object.
 
+### queryFullPages
+
+Get the full data for a collection of pages,
+typically produced by a generator.
+
+```js
+let n = 0;
+for await ( const page of queryFullPages( session, {
+	generator: 'allpages',
+	gapnamespace: 10, // NS_TEMPLATE
+	gaplimit: 100,
+	prop: set( 'revisions' ),
+	rvprop: set( 'content' ),
+	rvslots: set( 'main' ),
+	formatversion: 2,
+} ) ) {
+	const content = page.revisions[ 0 ].slots.main.content;
+	if ( content.includes( 'style=' ) ) {
+		console.log( `${page.title} seems to contain inline styles` );
+		if ( ++n >= 10 ) {
+			break;
+		}
+	}
+}
+```
+
+In this example, we ask the `allpages` generator for 100 pages at a time,
+but the `revisions` prop will actually only return 50 revisions per request,
+so we need to follow continuation once for the revisions of the second half of pages,
+before continuing with the next batch of 100 pages.
+The function handles all of this for you.
+
+It’s worth noting that the function only starts yielding pages at the end of a complete batch,
+i.e. in this example only after the first 100 pages all have their revisions.
+If we used `gaplimit: 'max'`, the generator would produce 500 pages at once,
+and the function would make 10 requests internally before yielding any pages;
+since this example quickly breaks from the loop anyways,
+a shorter `gaplimit` makes more sense here.
+
 ## License
 
 Published under the [ISC License][].
