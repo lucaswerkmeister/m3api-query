@@ -9,6 +9,9 @@
 		"plugin:chai-friendly/recommended"
 	],
 	"rules": {
-		"comma-dangle": [ "error", "always-multiline" ]
+		"comma-dangle": [ "error", "always-multiline" ],
+		"jsdoc/no-undefined-types": [ "error", {
+			"definedTypes": [ "Session" ]
+		} ]
 	}
 }

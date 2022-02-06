@@ -1,8 +1,10 @@
 /* eslint-env mocha */
 
+import { Session, set } from 'm3api/core.js';
 import {
 	getResponsePageByTitle,
 	getResponsePageByPageId,
+	queryPartialPageByTitle,
 } from '../../index.js';
 import chai, { expect } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
@@ -212,6 +214,129 @@ describe( 'getResponsePageByPageId', () => {
 	it( 'handles empty response', () => {
 		const response = { batchcomplete: true /* no query */ };
 		expect( getResponsePageByPageId( response, 123 ) ).to.be.null;
+	} );
+
+} );
+
+class BaseTestSession extends Session {
+
+	constructor() {
+		super( 'https://en.wikipedia.org', {}, {
+			warn() {
+				throw new Error( 'warn() should not be called in this test' );
+			},
+			userAgent: 'm3api-query-unit-test',
+		} );
+	}
+
+	internalGet() {
+		throw new Error( 'internalGet() should not be called in this test' );
+	}
+
+	internalPost() {
+		throw new Error( 'internalPost() should not be called in this test' );
+	}
+
+}
+
+function successfulResponse( body ) {
+	return {
+		status: 200,
+		headers: {},
+		body,
+	};
+}
+
+function singleGetSession( expectedParams, response ) {
+	expectedParams.format = 'json';
+	let called = false;
+	class TestSession extends BaseTestSession {
+		async internalGet( params ) {
+			expect( called, 'internalGet already called' ).to.be.false;
+			called = true;
+			expect( params ).to.eql( expectedParams );
+			return successfulResponse( response );
+		}
+	}
+	return new TestSession();
+}
+
+describe( 'queryPartialPageByTitle', () => {
+
+	it( 'adds default params and returns page', async () => {
+		const title = 'Title';
+		const page = { title };
+		const response = { query: { pages: [ page ] } };
+		const expectedParams = { action: 'query', titles: title };
+		const session = singleGetSession( expectedParams, response );
+		expect( await queryPartialPageByTitle( session, title ) ).to.equal( page );
+	} );
+
+	it( 'allows action=query in params', async () => {
+		const title = 'Title';
+		const page = { title };
+		const response = { query: { pages: [ page ] } };
+		const expectedParams = { action: 'query', titles: title };
+		const session = singleGetSession( expectedParams, response );
+		expect( await queryPartialPageByTitle( session, title, { action: 'query' } ) ).to.equal( page );
+	} );
+
+	it( 'disallows other action in params', async () => {
+		const title = 'Title';
+		const session = new BaseTestSession();
+		await expect( queryPartialPageByTitle( session, title, { action: 'purge' } ) )
+			.to.be.rejected;
+	} );
+
+	for ( const [ type, params ] of [
+		[ 'set', ( title ) => ( { titles: set( title ) } ) ],
+		[ 'array', ( title ) => ( { titles: [ title ] } ) ],
+		[ 'string', ( title ) => ( { titles: title } ) ],
+	] ) {
+
+		it( `handles existing same title ${type} in params`, async () => {
+			const title = 'Title';
+			const page = { title };
+			const response = { query: { pages: [ page ] } };
+			const expectedParams = { action: 'query', titles: title };
+			const session = singleGetSession( expectedParams, response );
+			const inputParams = params( title );
+			expect( await queryPartialPageByTitle( session, title, inputParams ) ).to.equal( page );
+			expect( inputParams, 'params modified' ).to.eql( params( title ) );
+		} );
+
+		it( `adds to existing other title ${type} in params`, async () => {
+			const title = 'Title';
+			const page = { title };
+			const otherTitle = 'Other title';
+			const otherPage = { title: otherTitle };
+			const response = { query: { pages: [ page, otherPage ] } };
+			const expectedParams = { action: 'query', titles: `${otherTitle}|${title}` };
+			const session = singleGetSession( expectedParams, response );
+			const inputParams = params( otherTitle );
+			expect( await queryPartialPageByTitle( session, title, inputParams ) ).to.equal( page );
+			expect( inputParams, 'params modified' ).to.eql( params( otherTitle ) );
+		} );
+
+	}
+
+	it( 'passes through options', async () => {
+		const title = 'Title';
+		const page = { title };
+		const response = { query: { pages: [ page ] } };
+		const expectedParams = { action: 'query', titles: title, format: 'json' };
+		let called = false;
+		class TestSession extends BaseTestSession {
+			async internalPost( urlParams, bodyParams ) {
+				expect( called, 'internalPost already called' ).to.be.false;
+				called = true;
+				expect( urlParams ).to.eql( {} );
+				expect( bodyParams ).to.eql( expectedParams );
+				return successfulResponse( response );
+			}
+		}
+		const session = new TestSession();
+		expect( await queryPartialPageByTitle( session, title, {}, { method: 'POST' } ) ).to.equal( page );
 	} );
 
 } );

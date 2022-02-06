@@ -96,7 +96,73 @@ function getResponsePageByPageId( response, pageId ) {
 	}
 }
 
+/**
+ * @private
+ * @param {Object} params Not modified.
+ * @return {Object}
+ */
+function makeParams( params ) {
+	if ( params.action === undefined ) {
+		return {
+			...params,
+			action: 'query',
+		};
+	} else if ( params.action === 'query' ) {
+		return params;
+	} else {
+		throw new RangeError( 'params.action must be "query" or undefined' );
+	}
+}
+
+/**
+ * @private
+ * @param {Object} params Not modified.
+ * @param {string} title
+ * @return {Object}
+ */
+function makeParamsWithTitle( params, title ) {
+	let titles = params.titles;
+	if ( titles instanceof Set ) {
+		titles = new Set( titles );
+		titles.add( title );
+	} else if ( Array.isArray( titles ) ) {
+		if ( !titles.includes( title ) ) {
+			titles = [ ...titles, title ];
+		}
+	} else if ( typeof titles === 'string' ) {
+		titles = new Set( [ titles, title ] );
+	} else if ( titles === undefined ) {
+		titles = new Set( [ title ] );
+	} else {
+		throw new RangeError( 'params.titles must be Set, Array, string, or undefined' );
+	}
+
+	return makeParams( { ...params, titles } );
+}
+
+/**
+ * Make a single request for the given page and return it.
+ *
+ * The page might be incomplete due to limitations on the overall response size,
+ * and continuation may be required to acquire the complete page.
+ *
+ * @param {Session} session An API session.
+ * @param {string} title The title of the page to query.
+ * @param {Object} [params] Other request parameters.
+ * You will usually want to specify at least the prop parameter.
+ * This may include the titles parameter,
+ * in which case the given title will be added if necessary.
+ * @param {Object} [options] Request options.
+ * @return {Object} The page with the given title.
+ */
+async function queryPartialPageByTitle( session, title, params = {}, options = {} ) {
+	params = makeParamsWithTitle( params, title );
+	const response = await session.request( params, options );
+	return getResponsePageByTitle( response, title );
+}
+
 export {
 	getResponsePageByTitle,
 	getResponsePageByPageId,
+	queryPartialPageByTitle,
 };
