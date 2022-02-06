@@ -5,6 +5,7 @@ import {
 	getResponsePageByTitle,
 	getResponsePageByPageId,
 	queryPartialPageByTitle,
+	queryIncrementalPageByTitle,
 } from '../../index.js';
 import chai, { expect } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
@@ -337,6 +338,69 @@ describe( 'queryPartialPageByTitle', () => {
 		}
 		const session = new TestSession();
 		expect( await queryPartialPageByTitle( session, title, {}, { method: 'POST' } ) ).to.equal( page );
+	} );
+
+} );
+
+describe( 'queryIncrementalPageByTitle', () => {
+
+	// all the param handling is already covered by the queryPartialPageByTitle tests
+
+	it( 'returns two versions of page', async () => {
+		const title1 = 'Title 1';
+		const page1A = { title: title1, extra: 'data' };
+		const page1B = { title: title1 };
+		const title2 = 'Title 2';
+		const page2A = { title: title2 };
+		const page2B = { title: title2, extra: 'data' };
+		const responseA = { query: { pages: [ page1A, page2A ] }, continue: { continue: title2 } };
+		const responseB = { query: { pages: [ page1B, page2B ] }, batchcomplete: true };
+		let call = 0;
+		class TestSession extends BaseTestSession {
+			async internalGet( params ) {
+				switch ( ++call ) {
+					case 1:
+						expect( params ).to.eql( {
+							action: 'query',
+							titles: `${title1}|${title2}`,
+							format: 'json',
+						} );
+						return successfulResponse( responseA );
+					case 2:
+						expect( params ).to.eql( {
+							action: 'query',
+							titles: `${title1}|${title2}`,
+							continue: title2,
+							format: 'json',
+						} );
+						return successfulResponse( responseB );
+					default:
+						throw new Error( `Unexpected call #${call}` );
+				}
+			}
+		}
+
+		const session = new TestSession();
+		let iteration = 0;
+		for await ( const response of queryIncrementalPageByTitle(
+			session,
+			title2,
+			{ titles: title1 },
+		) ) {
+			switch ( ++iteration ) {
+				case 1:
+					expect( response ).to.equal( page2A );
+					break;
+				case 2:
+					expect( response ).to.equal( page2B );
+					break;
+				default:
+					throw new Error( `Unexpected iteration #${iteration}` );
+			}
+		}
+
+		expect( call ).to.equal( 2 );
+		expect( iteration ).to.equal( 2 );
 	} );
 
 } );

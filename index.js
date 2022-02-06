@@ -161,8 +161,38 @@ async function queryPartialPageByTitle( session, title, params = {}, options = {
 	return getResponsePageByTitle( response, title );
 }
 
+/**
+ * Make continued requests for the given page,
+ * and yield the partial pages from the results.
+ *
+ * The individual pages might be incomplete, but once iteration finishes,
+ * all the information should have been returned somewhere.
+ *
+ * @param {Session} session An API session.
+ * @param {string} title The title of the page to query.
+ * @param {Object} [params] Other request parameters.
+ * You will usually want to specify at least the prop parameter.
+ * This may include the titles parameter,
+ * in which case the given title will be added if necessary.
+ * @param {Object} [options] Request options.
+ * @return {Object} One or more versions of the page with the given title.
+ */
+async function * queryIncrementalPageByTitle( session, title, params = {}, options = {} ) {
+	params = makeParamsWithTitle( params, title );
+	for await ( const response of session.requestAndContinue( params, options ) ) {
+		yield getResponsePageByTitle( response, title );
+		if ( 'batchcomplete' in response ) {
+			// there *should* be no continuation past this anyways,
+			// because we’re not using a generator,
+			// but let’s explicitly break from the loop just in case
+			break;
+		}
+	}
+}
+
 export {
 	getResponsePageByTitle,
 	getResponsePageByPageId,
 	queryPartialPageByTitle,
+	queryIncrementalPageByTitle,
 };
