@@ -342,10 +342,11 @@ async function * queryFullPages( session, params, options = {} ) {
 		}
 
 		for ( const page of pages ) {
-			if ( batch.has( page.pageid ) ) {
-				mergeObjects( batch.get( page.pageid ), page );
+			const key = page.pageid || page.title; // fall back to title for missing pages
+			if ( batch.has( key ) ) {
+				mergeObjects( batch.get( key ), page );
 			} else {
-				batch.set( page.pageid, page );
+				batch.set( key, page );
 			}
 		}
 

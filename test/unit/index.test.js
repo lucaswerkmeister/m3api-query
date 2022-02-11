@@ -713,4 +713,49 @@ describe( 'queryFullPages', () => {
 		expect( iteration ).to.equal( 4 );
 	} );
 
+	it( 'distinguishes missing pages by title', async () => {
+		const session = sequentialGetSession( [
+			{
+				expectedParams: { action: 'query', generator: 's', s: '?' },
+				response: { query: { pages: [
+					{ pageid: 0, missing: true, title: 'A', extra: 'a' },
+					{ pageid: 0, missing: true, title: 'B' },
+				] }, continue: { so: '1' } },
+			},
+			{
+				expectedParams: { action: 'query', generator: 's', s: '?', so: '1' },
+				response: { query: { pages: [
+					{ pageid: 0, missing: true, title: 'A' },
+					{ pageid: 0, missing: true, title: 'B', extra: 'b' },
+				] }, batchcomplete: true },
+			},
+		] );
+
+		let iteration = 0;
+		for await ( const page of queryFullPages( session, { generator: 's', s: '?' } ) ) {
+			switch ( ++iteration ) {
+				case 1:
+					expect( page ).to.eql( {
+						pageid: 0,
+						missing: true,
+						title: 'A',
+						extra: 'a',
+					} );
+					break;
+				case 2:
+					expect( page ).to.eql( {
+						pageid: 0,
+						missing: true,
+						title: 'B',
+						extra: 'b',
+					} );
+					break;
+				default:
+					throw new Error( `Unexpected iteration #${iteration}` );
+			}
+		}
+
+		expect( iteration ).to.equal( 2 );
+	} );
+
 } );
