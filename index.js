@@ -147,23 +147,87 @@ function makeParamsWithTitle( params, title ) {
 	return makeParams( { ...params, titles } );
 }
 
+const isArray = Array.isArray;
+function isObject( value ) {
+	return typeof value === 'object' && value !== null && !isArray( value );
+}
+
+/**
+ * Merge two values, one from a base object
+ * (based on an earlier response, possibly already merged),
+ * one from the latest response.
+ *
+ * This callback is used to merge different values with no obvious merge strategy.
+ * The obvious merge strategy is to merge objects recursively, and concatenate arrays.
+ * The callback is therefore used when a value is present in both objects,
+ * the values are not both objects or both arrays, and they are not the same.
+ *
+ * @callback mergeValues
+ * @param {*} baseValue The value from the base object.
+ * @param {*} incrementalValue The value from the incremental (new) object.
+ * @param {string} path The path to the value, for error reporting.
+ * @param {Object} base The full base object.
+ * @param {string} key The key of the values in the object.
+ * @return {*} The value to use in the base object.
+ */
+
+/**
+ * Make a default mergeValues function.
+ *
+ * @param {boolean} internal Whether this is the internal or external version.
+ * Only affects the error message.
+ * @return {mergeValues}
+ */
+function mergeValuesFunction( internal ) {
+	return function mergeValues( base, incremental, path ) {
+		const baseType = typeof base;
+
+		if ( baseType === typeof incremental && (
+			baseType === 'string' || baseType === 'number' ) ) {
+			// accept that these can be unstable, arbitrarily pick the earlier value
+			return base;
+		}
+
+		// in all other cases, throw an error
+		function format( value ) {
+			if ( value === null ) {
+				return 'null';
+			}
+			if ( isArray( value ) ) {
+				return 'array';
+			}
+			if ( isObject( value ) ) {
+				return 'object';
+			}
+			return `${typeof value} (${value})`;
+		}
+
+		let message = `Error merging objects from two responses at ${path}: ` +
+			`Cannot merge ${format( base )} with ${format( incremental )}`;
+		if ( internal ) {
+			message += '\n\nThis is probably a bug, please report it at ' +
+				'<https://github.com/lucaswerkmeister/m3api-query/issues/>.';
+		} else {
+			message += '\n\nThis may be a bug in your mergeValues function.';
+		}
+		throw new Error( message );
+	};
+}
+
+const mergeValuesInternal = mergeValuesFunction( true );
+const mergeValuesExternal = mergeValuesFunction( false );
+
 /**
  * Merge the incremental object into the base one.
  *
  * @private
  * @param {Object} base
  * @param {Object} incremental
+ * @param {mergeValues} mergeValues Callback to merge different values
+ * with no obvious merge strategy.
  * @param {string} [basePath] Path to the object, for error reporting.
  */
-function mergeObjects( base, incremental, basePath = '' ) {
-	function error( path, message ) {
-		return new Error(
-			`Error merging objects from two responses at ${path}: ${message}\n\n` +
-				'This is probably a bug, please report it at ' +
-				'<https://github.com/lucaswerkmeister/m3api-query/issues/>.',
-		);
-	}
-
+function mergeObjects( base, incremental, mergeValues, basePath = '' ) {
 	for ( const [ key, incrementalValue ] of Object.entries( incremental ) ) {
 		if ( !Object.prototype.hasOwnProperty.call( base, key ) ) {
 			base[ key ] = incrementalValue;
@@ -171,53 +235,23 @@ function mergeObjects( base, incremental, basePath = '' ) {
 		}
 
 		const baseValue = base[ key ];
-		const baseType = typeof baseValue;
-		const incrementalType = typeof incrementalValue;
 		const path = basePath ? `${basePath}.${key}` : key;
 
-		if ( baseValue === null ) {
-			if ( incrementalValue !== null ) {
-				throw error( path, `Cannot merge null with non-null (${incrementalType})` );
-			}
-
+		if ( isObject( baseValue ) && isObject( incrementalValue ) ) {
+			mergeObjects( baseValue, incrementalValue, mergeValues, path );
 			continue;
 		}
 
-		if ( Array.isArray( baseValue ) ) {
-			if ( !Array.isArray( incrementalValue ) ) {
-				throw error( path, `Cannot merge array with non-array (${incrementalType})` );
-			}
-
+		if ( isArray( baseValue ) && isArray( incrementalValue ) ) {
 			base[ key ] = [ ...baseValue, ...incrementalValue ];
 			continue;
 		}
 
-		if ( baseType === 'object' ) {
-			if ( Array.isArray( incrementalValue ) ) {
-				throw error( path, 'Cannot merge object with array' );
-			}
-
-			if ( incrementalType === 'object' ) {
-				mergeObjects( baseValue, incrementalValue, path );
-				continue;
-			}
-
-			throw error( path, `Cannot merge object with non-object (${incrementalType})` );
-		}
-
-		if ( baseType === 'string' || baseType === 'number' || baseType === 'boolean' ) {
-			if ( incrementalType !== baseType ) {
-				throw error( path, `Cannot merge ${baseType} (${baseValue}) with non-${baseType} (${incrementalType})` );
-			}
-
-			if ( baseValue !== incrementalValue ) {
-				throw error( path, `Cannot merge different ${baseType}s (${baseValue} != ${incrementalValue})` );
-			}
-
+		if ( baseValue === incrementalValue ) {
 			continue;
 		}
 
-		throw error( path, `Unexpected type ${baseType}` );
+		base[ key ] = mergeValues( baseValue, incrementalValue, path, base, key );
 	}
 }
 
@@ -298,16 +332,28 @@ async function * queryIncrementalPageByTitle( session, title, params = {}, optio
  * This may include the titles parameter,
  * in which case the given title will be added if necessary.
  * @param {Object} [options] Request options.
+ * @param {mergeValues} [mergeValues] Callback to merge conflicting values.
+ * Called when merging versions of the page that have conflicting values for a key.
+ * The default implementation (which can be imported as mergeValues)
+ * will pick the earlier value when encountering different strings or numbers,
+ * accepting that these may be unstable between responses,
+ * and otherwise throw an error, assuming that other values should not vary.
  * @return {Object} The full data of the page with the given title.
  * (The data included will depend on the prop paramater –
  * “full” means that partial responses are merged,
  * not that the object includes all the information about the page
  * that MediaWiki could possibly return.)
  */
-async function queryFullPageByTitle( session, title, params = {}, options = {} ) {
+async function queryFullPageByTitle(
+	session,
+	title,
+	params = {},
+	options = {},
+	mergeValues = mergeValuesInternal,
+) {
 	const page = {};
 	for await ( const incr of queryIncrementalPageByTitle( session, title, params, options ) ) {
-		mergeObjects( page, incr );
+		mergeObjects( page, incr, mergeValues );
 	}
 	return page;
 }
@@ -326,13 +372,24 @@ async function queryFullPageByTitle( session, title, params = {}, options = {} )
  * and then a prop parameter to determine the properties of each returned page.
  * Can also be used with titles/pageids/revids, though.
  * @param {Object} [options] Request options.
+ * @param {mergeValues} [mergeValues] Callback to merge conflicting values.
+ * Called when merging versions of the page that have conflicting values for a key.
+ * The default implementation (which can be imported as mergeValues)
+ * will pick the earlier value when encountering different strings or numbers,
+ * accepting that these may be unstable between responses,
+ * and otherwise throw an error, assuming that other values should not vary.
  * @return {Object} The full data of each returned page.
  * (The data included will depend on the prop paramater –
  * “full” means that partial responses are merged,
  * not that the object includes all the information about the page
  * that MediaWiki could possibly return.)
  */
-async function * queryFullPages( session, params, options = {} ) {
+async function * queryFullPages(
+	session,
+	params,
+	options = {},
+	mergeValues = mergeValuesInternal,
+) {
 	params = { ...params, action: 'query' };
 	const batch = new Map();
 	for await ( const response of session.requestAndContinue( params, options ) ) {
@@ -344,7 +401,7 @@ async function * queryFullPages( session, params, options = {} ) {
 		for ( const page of pages ) {
 			const key = page.pageid || page.title; // fall back to title for missing pages
 			if ( batch.has( key ) ) {
-				mergeObjects( batch.get( key ), page );
+				mergeObjects( batch.get( key ), page, mergeValues );
 			} else {
 				batch.set( key, page );
 			}
@@ -364,4 +421,5 @@ export {
 	queryIncrementalPageByTitle,
 	queryFullPageByTitle,
 	queryFullPages,
+	mergeValuesExternal as mergeValues,
 };

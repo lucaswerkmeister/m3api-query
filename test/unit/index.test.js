@@ -564,28 +564,81 @@ describe( 'queryFullPageByTitle', () => {
 		} );
 	} );
 
-	describe( 'error reporting', () => {
+	describe( 'default mergeValues behavior', () => {
 
 		const title = 'Title';
-		for ( const { name, pageA, pageB, path } of [
+		for ( const { name, pageA, pageB, expected } of [
 			{
 				name: 'different pageid numbers',
 				pageA: { title, pageid: 1 },
 				pageB: { title, pageid: 2 },
-				path: 'pageid',
+				expected: { title, pageid: 1 },
 			},
 			{
 				name: 'different contentmodel strings',
 				pageA: { title, contentmodel: 'wikitext' },
 				pageB: { title, contentmodel: 'json' },
-				path: 'contentmodel',
+				expected: { title, contentmodel: 'wikitext' },
 			},
 			{
 				name: 'different wikibase-shortdesc pageprops',
 				pageA: { title, pageprops: { 'wikibase-shortdesc': 'desc 1' } },
 				pageB: { title, pageprops: { 'wikibase-shortdesc': 'desc 2' } },
-				path: 'pageprops.wikibase-shortdesc',
+				expected: { title, pageprops: { 'wikibase-shortdesc': 'desc 1' } },
 			},
+		] ) {
+			it( name, async () => {
+				const session = sequentialGetSession( [
+					{
+						expectedParams: { action: 'query', titles: title },
+						response: { query: { pages: [ pageA ] }, continue: { continue: 'c' } },
+					},
+					{
+						expectedParams: { action: 'query', titles: title, continue: 'c' },
+						response: { query: { pages: [ pageB ] }, batchcomplete: true },
+					},
+				] );
+				const page = await queryFullPageByTitle( session, title );
+				expect( page ).to.eql( expected );
+			} );
+		}
+
+	} );
+
+	it( 'calls custom mergeValues callback', async () => {
+		let called = false;
+		function mergeValues( baseValue, incrementalValue, path, base, key ) {
+			expect( called, 'mergeValues already called' ).to.be.false;
+			called = true;
+			expect( baseValue ).to.equal( 1 );
+			expect( incrementalValue ).to.equal( 2 );
+			expect( path ).to.equal( 'a.b' );
+			expect( base ).to.eql( { b: 1 } );
+			expect( key ).to.equal( 'b' );
+			base[ `-test-${key}` ] = [ baseValue, incrementalValue ];
+			return baseValue + incrementalValue;
+		}
+
+		const title = 'Title';
+		const session = sequentialGetSession( [
+			{
+				expectedParams: { action: 'query', titles: title },
+				response: { query: { pages: [ { title, a: { b: 1 } } ] }, continue: { c: 'c' } },
+			},
+			{
+				expectedParams: { action: 'query', titles: title, c: 'c' },
+				response: { query: { pages: [ { title, a: { b: 2 } } ] }, batchcomplete: true },
+			},
+		] );
+		const page = await queryFullPageByTitle( session, title, {}, {}, mergeValues );
+		expect( page ).to.eql( { title, a: { b: 3, '-test-b': [ 1, 2 ] } } );
+		expect( called ).to.be.true;
+	} );
+
+	describe( 'default mergeValues error reporting', () => {
+
+		const title = 'Title';
+		for ( const { name, pageA, pageB, path } of [
 			{
 				name: 'different deeply nested booleans',
 				pageA: { title, a: { b: { c: { d: true } } } },
