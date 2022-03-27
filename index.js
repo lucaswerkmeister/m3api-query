@@ -390,7 +390,7 @@ async function * queryFullPages(
 	options = {},
 	mergeValues = mergeValuesInternal,
 ) {
-	params = { ...params, action: 'query' };
+	params = makeParams( params );
 	const reducer = ( batch, response ) => {
 		let pages = ( response.query || {} ).pages || [];
 		if ( !Array.isArray( pages ) ) {
