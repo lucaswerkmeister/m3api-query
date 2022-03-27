@@ -433,7 +433,7 @@ describe( 'queryFullPageByTitle', () => {
 	it( 'returns a single page', async () => {
 		const title = 'Title';
 		const page = { title };
-		const response = { query: { pages: [ page ] } };
+		const response = { query: { pages: [ page ] }, batchcomplete: true };
 		const expectedParams = { action: 'query', titles: title };
 		const session = singleGetSession( expectedParams, response );
 		expect( await queryFullPageByTitle( session, title ) ).to.eql( page );

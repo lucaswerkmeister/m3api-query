@@ -351,11 +351,24 @@ async function queryFullPageByTitle(
 	options = {},
 	mergeValues = mergeValuesInternal,
 ) {
-	const page = {};
-	for await ( const incr of queryIncrementalPageByTitle( session, title, params, options ) ) {
+	params = makeParamsWithTitle( params, title );
+	const reducer = ( page, response ) => {
+		const incr = getResponsePageByTitle( response, title );
 		mergeObjects( page, incr, mergeValues );
+		return page;
+	};
+	const initial = () => ( {} );
+
+	for await ( const page of session.requestAndContinueReducingBatch(
+		params,
+		options,
+		reducer,
+		initial,
+	) ) {
+		return page;
 	}
-	return page;
+
+	throw new Error( 'API finished continuation without completing a batch' );
 }
 
 /**
