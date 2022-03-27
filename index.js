@@ -97,6 +97,62 @@ function getResponsePageByPageId( response, pageId ) {
 }
 
 /**
+ * Get the revision with the given revision ID out of an API response.
+ *
+ * @param {Object} response A full response, as returned by {@link Session#request}.
+ * @param {string|number} revisionId The revision ID to look for, a positive integer.
+ * @return {Object|null} The revision with the given revision ID,
+ * or null if no such revision was found.
+ * A null return likely means a mismatch between request parameters and revision ID;
+ * if a request for this revision ID was made, but no such revision exists,
+ * then the response will still contain a “bad” revision object (and this function will return it),
+ * with a key indicating that the revision is missing.
+ * Otherwise, the contents of the revision object will depend
+ * on the parameters with which the request was made,
+ * especially the rvprop parameter.
+ */
+function getResponseRevisionByRevisionId( response, revisionId ) {
+	if ( typeof revisionId === 'number' ) {
+		revisionId = revisionId.toString();
+	}
+
+	const query = response.query || {};
+
+	if ( query.badrevids && query.badrevids[ revisionId ] ) {
+		const badRevision = query.badrevids[ revisionId ];
+		if ( 'missing' in badRevision ) {
+			return badRevision;
+		} else {
+			// add "missing" to response from older MediaWiki (pre-T301041)
+			const formatversion2 = typeof response.batchcomplete === 'boolean' ||
+				Array.isArray( query.pages );
+			return {
+				...badRevision,
+				missing: formatversion2 ? true : '',
+			};
+		}
+	}
+
+	let pages = query.pages || [];
+	if ( !Array.isArray( pages ) ) {
+		pages = Object.values( pages );
+	}
+	// this looks O(n²), but is O(n) in practice:
+	// prop=revisions refuses to produce more than one revision
+	// if there is more than one page in the whole response,
+	// so at least one of the loops is iterating over a single element
+	for ( const page of pages ) {
+		const revisions = page.revisions || [];
+		for ( const revision of revisions ) {
+			if ( revisionId === revision.revid.toString() ) {
+				return revision;
+			}
+		}
+	}
+	return null;
+}
+
+/**
  * @private
  * @param {Object} params Not modified.
  * @return {Object}
@@ -436,6 +492,7 @@ async function * queryFullPages(
 export {
 	getResponsePageByTitle,
 	getResponsePageByPageId,
+	getResponseRevisionByRevisionId,
 	queryPartialPageByTitle,
 	queryIncrementalPageByTitle,
 	queryFullPageByTitle,

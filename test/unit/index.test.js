@@ -4,6 +4,7 @@ import { Session, set } from 'm3api/core.js';
 import {
 	getResponsePageByTitle,
 	getResponsePageByPageId,
+	getResponseRevisionByRevisionId,
 	queryPartialPageByTitle,
 	queryIncrementalPageByTitle,
 	queryFullPageByTitle,
@@ -217,6 +218,83 @@ describe( 'getResponsePageByPageId', () => {
 	it( 'handles empty response', () => {
 		const response = { batchcomplete: true /* no query */ };
 		expect( getResponsePageByPageId( response, 123 ) ).to.be.null;
+	} );
+
+} );
+
+describe( 'getResponseRevisionByRevisionId', () => {
+
+	it( 'finds revision with ID, formatversion=1', () => {
+		const revid = 123;
+		const revision = { revid };
+		const unrelatedRevision = { revid: 456 };
+		const page = { revisions: [ revision, unrelatedRevision ] };
+		const unrelatedPage = { revisions: [ { revid: 789 } ] };
+		const response = { query: { pages: { 34: unrelatedPage, 12: page } } };
+		expect( getResponseRevisionByRevisionId( response, revid ) ).to.equal( revision );
+	} );
+
+	it( 'finds revision with ID, formatversion=2', () => {
+		const revid = 123;
+		const revision = { revid };
+		const unrelatedRevision = { revid: 456 };
+		const page = { revisions: [ revision, unrelatedRevision ] };
+		const unrelatedPage = { revisions: [ { revid: 789 } ] };
+		const response = { query: { pages: [ unrelatedPage, page ] } };
+		expect( getResponseRevisionByRevisionId( response, revid ) ).to.equal( revision );
+	} );
+
+	it( 'does not find page with different ID', () => {
+		const revid = 123;
+		const revision = { revid };
+		const page = { revisions: [ revision ] };
+		const response = { query: { pages: [ page ] } };
+		const inputRevisionId = 456;
+		expect( getResponseRevisionByRevisionId( response, inputRevisionId ) ).to.be.null;
+	} );
+
+	for ( const paramType of [ String, Number ] ) {
+		for ( const responseType of [ String, Number ] ) {
+			it( `finds revision with ${responseType.name} ID using ${paramType.name} ID`, () => {
+				const revid = 123;
+				const revision = { revid: responseType( revid ) };
+				const page = { revisions: [ revision ] };
+				const response = { query: { pages: [ page ] } };
+				expect( getResponseRevisionByRevisionId( response, paramType( revid ) ) )
+					.to.equal( revision );
+			} );
+		}
+	}
+
+	describe( 'returns missing revision', () => {
+
+		it( 'with "missing" in badrevids', () => {
+			const revid = 123;
+			const revision = { revid, missing: true };
+			const response = { query: { badrevids: { [ revid ]: revision } } };
+			expect( getResponseRevisionByRevisionId( response, revid ) ).to.equal( revision );
+		} );
+
+		const revid = 123;
+		for ( const [ responseDescription, response, expected ] of [
+			[ 'formatversion=1 + pages', { query: { pages: {} } }, { revid, missing: '' } ],
+			[ 'formatversion=1 + batchcomplete', { batchcomplete: '' }, { revid, missing: '' } ],
+			[ 'formatversion=2 + pages', { query: { pages: [] } }, { revid, missing: true } ],
+			[ 'formatversion=2 + batchcomplete', { batchcomplete: true }, { revid, missing: true } ],
+		] ) {
+			it( `adds "missing" to ${responseDescription} response`, () => {
+				const revision = { revid };
+				response.query = response.query || {};
+				response.query.badrevids = { [ revid ]: revision };
+				expect( getResponseRevisionByRevisionId( response, revid ) ).to.eql( expected );
+			} );
+		}
+
+	} );
+
+	it( 'handles empty response', () => {
+		const response = { batchcomplete: true /* no query */ };
+		expect( getResponseRevisionByRevisionId( response, 123 ) ).to.be.null;
 	} );
 
 } );
