@@ -391,8 +391,7 @@ async function * queryFullPages(
 	mergeValues = mergeValuesInternal,
 ) {
 	params = { ...params, action: 'query' };
-	const batch = new Map();
-	for await ( const response of session.requestAndContinue( params, options ) ) {
+	const reducer = ( batch, response ) => {
 		let pages = ( response.query || {} ).pages || [];
 		if ( !Array.isArray( pages ) ) {
 			pages = Object.values( pages );
@@ -407,10 +406,17 @@ async function * queryFullPages(
 			}
 		}
 
-		if ( 'batchcomplete' in response ) {
-			yield * batch.values();
-			batch.clear();
-		}
+		return batch;
+	};
+	const initial = () => new Map();
+
+	for await ( const batch of session.requestAndContinueReducingBatch(
+		params,
+		options,
+		reducer,
+		initial,
+	) ) {
+		yield * batch.values();
 	}
 }
 
