@@ -8,6 +8,9 @@ import {
 	queryPartialPageByTitle,
 	queryIncrementalPageByTitle,
 	queryFullPageByTitle,
+	queryPartialPageByPageId,
+	queryIncrementalPageByPageId,
+	queryFullPageByPageId,
 	queryFullPages,
 } from '../../index.js';
 import chai, { expect } from 'chai';
@@ -764,6 +767,262 @@ describe( 'queryFullPageByTitle', () => {
 			} );
 		}
 
+	} );
+
+} );
+
+describe( 'queryPartialPageByPageId', () => {
+
+	// subset of the queryPartialPageByTitle tests
+
+	it( 'adds default params and returns page', async () => {
+		const pageid = '123';
+		const page = { pageid };
+		const response = { query: { pages: [ page ] } };
+		const expectedParams = { action: 'query', pageids: pageid };
+		const session = singleGetSession( expectedParams, response );
+		expect( await queryPartialPageByPageId( session, pageid ) ).to.equal( page );
+	} );
+
+	it( 'disallows generator in params', async () => {
+		const pageid = '123';
+		const session = new BaseTestSession();
+		await expect( queryPartialPageByPageId( session, pageid, { generator: 'links' } ) )
+			.to.be.rejected;
+	} );
+
+	for ( const [ container, params ] of [
+		[ 'Set', ( pageid ) => ( { pageids: set( pageid ) } ) ],
+		[ 'Array', ( pageid ) => ( { pageids: [ pageid ] } ) ],
+		[ '(unwrapped)', ( pageid ) => ( { pageids: pageid } ) ],
+	] ) {
+
+		for ( const [ existingType, extraType ] of [
+			[ Number, Number ],
+			[ Number, String ],
+			[ String, Number ],
+			[ String, String ],
+		] ) {
+
+			it( `does not duplicate existing page ID ${existingType.name} ${container} given ${extraType.name}`, async () => {
+				const pageid = '123';
+				const page = { pageid };
+				const response = { query: { pages: [ page ] } };
+				const expectedParams = { action: 'query', pageids: pageid };
+				const session = singleGetSession( expectedParams, response );
+				const inputPageId = extraType( pageid );
+				const inputParams = params( existingType( pageid ) );
+				expect( await queryPartialPageByPageId( session, inputPageId, inputParams ) )
+					.to.equal( page );
+				expect( inputParams, 'params modified' )
+					.to.eql( params( existingType( pageid ) ) );
+			} );
+
+			it( `adds to existing other page ID ${existingType.name} ${container} given ${extraType.name}`, async () => {
+				const pageid = '123';
+				const page = { pageid };
+				const otherPageId = '456';
+				const otherPage = { pageid: otherPageId };
+				const response = { query: { pages: [ page, otherPage ] } };
+				const expectedParams = { action: 'query', pageids: `${otherPageId}|${pageid}` };
+				const session = singleGetSession( expectedParams, response );
+				const inputPageId = extraType( pageid );
+				const inputParams = params( existingType( otherPageId ) );
+				expect( await queryPartialPageByPageId( session, inputPageId, inputParams ) )
+					.to.equal( page );
+				expect( inputParams, 'params modified' )
+					.to.eql( params( existingType( otherPageId ) ) );
+			} );
+
+		}
+
+		// precision tests
+		// (as numbers, 123456789123456789 = 123456789123456788 = 123456789123456780)
+
+		for ( const [ existing, extra ] of [
+			[ '123456789123456789', '123456789123456789' ],
+			[ 123456789123456780, '123456789123456780' ],
+		] ) {
+
+			it( `does not duplicate existing page ID ${existing} ${typeof existing} ${container} given ${extra} ${typeof extra}`, async () => {
+				const page = { pageid: existing };
+				const response = { query: { pages: [ page ] } };
+				const expectedParams = { action: 'query', pageids: String( existing ) };
+				const session = singleGetSession( expectedParams, response );
+				const inputParams = params( existing );
+				expect( await queryPartialPageByPageId( session, extra, inputParams ) )
+					.to.equal( page );
+				expect( inputParams, 'params modified' )
+					.to.eql( params( existing ) );
+			} );
+
+		}
+
+		for ( const [ existing, extra ] of [
+			[ '123456789123456789', '123456789123456788' ],
+			[ '123456789123456789', 123456789123456780 ],
+			[ 123456789123456780, '123456789123456789' ],
+		] ) {
+
+			it( `adds to existing other page ID ${existing} ${typeof existing} ${container} given ${extra} ${typeof extra}`, async () => {
+				const page = { pageid: String( extra ) };
+				const otherPage = { pageid: String( existing ) };
+				const response = { query: { pages: [ page, otherPage ] } };
+				const expectedParams = { action: 'query', pageids: `${existing}|${extra}` };
+				const session = singleGetSession( expectedParams, response );
+				const inputParams = params( existing );
+				expect( await queryPartialPageByPageId( session, extra, inputParams ) )
+					.to.equal( page );
+				expect( inputParams, 'params modified' )
+					.to.eql( params( existing ) );
+			} );
+
+		}
+
+	}
+
+	it( 'passes through options', async () => {
+		const pageid = '123';
+		const page = { pageid };
+		const response = { query: { pages: [ page ] } };
+		const expectedParams = { action: 'query', pageids: pageid, format: 'json' };
+		let called = false;
+		class TestSession extends BaseTestSession {
+			async internalPost( urlParams, bodyParams ) {
+				expect( called, 'internalPost already called' ).to.be.false;
+				called = true;
+				expect( urlParams ).to.eql( {} );
+				expect( bodyParams ).to.eql( expectedParams );
+				return successfulResponse( response );
+			}
+		}
+		const session = new TestSession();
+		expect( await queryPartialPageByPageId( session, pageid, {}, { method: 'POST' } ) ).to.equal( page );
+	} );
+
+} );
+
+describe( 'queryIncrementalPageByPageId', () => {
+
+	it( 'returns two versions of page', async () => {
+		const pageId1 = '123';
+		const page1A = { pageid: pageId1, extra: 'data' };
+		const page1B = { pageid: pageId1 };
+		const pageId2 = '456';
+		const page2A = { pageid: pageId2 };
+		const page2B = { pageid: pageId2, extra: 'data' };
+		const responseA = { query: { pages: [ page1A, page2A ] }, continue: { continue: pageId2 } };
+		const responseB = { query: { pages: [ page1B, page2B ] }, batchcomplete: true };
+		let call = 0;
+		class TestSession extends BaseTestSession {
+			async internalGet( params ) {
+				switch ( ++call ) {
+					case 1:
+						expect( params ).to.eql( {
+							action: 'query',
+							pageids: `${pageId1}|${pageId2}`,
+							format: 'json',
+						} );
+						return successfulResponse( responseA );
+					case 2:
+						expect( params ).to.eql( {
+							action: 'query',
+							pageids: `${pageId1}|${pageId2}`,
+							continue: pageId2,
+							format: 'json',
+						} );
+						return successfulResponse( responseB );
+					default:
+						throw new Error( `Unexpected call #${call}` );
+				}
+			}
+		}
+
+		const session = new TestSession();
+		let iteration = 0;
+		for await ( const response of queryIncrementalPageByPageId(
+			session,
+			pageId2,
+			{ pageids: pageId1 },
+		) ) {
+			switch ( ++iteration ) {
+				case 1:
+					expect( response ).to.equal( page2A );
+					break;
+				case 2:
+					expect( response ).to.equal( page2B );
+					break;
+				default:
+					throw new Error( `Unexpected iteration #${iteration}` );
+			}
+		}
+
+		expect( call ).to.equal( 2 );
+		expect( iteration ).to.equal( 2 );
+	} );
+
+} );
+
+describe( 'queryFullPageByPageId', () => {
+
+	// subset of the queryFullPageByTitle tests
+
+	it( 'combines objects', async () => {
+		const pageid = '123';
+		const session = sequentialGetSession( [
+			{
+				expectedParams: { action: 'query', pageids: pageid },
+				response: { query: { pages: [ {
+					pageid,
+					pageassessments: {
+						'Assessment A': {
+							class: 'C',
+						},
+					},
+					pageprops: {
+						propA: 'A',
+						propB: 'B',
+					},
+				} ] }, continue: { continue: 'c' } },
+			},
+			{
+				expectedParams: { action: 'query', pageids: pageid, continue: 'c' },
+				response: { query: { pages: [ {
+					pageid,
+					pageassessments: {
+						'Assessment A': {
+							importance: 'i',
+						},
+						'Assessment B': {
+							class: 'X',
+							importance: 'I',
+						},
+					},
+					pageprops: {
+						propB: 'B',
+						propC: 'C',
+					},
+				} ] }, batchcomplete: true },
+			},
+		] );
+		expect( await queryFullPageByPageId( session, pageid ) ).to.eql( {
+			pageid,
+			pageassessments: {
+				'Assessment A': {
+					class: 'C',
+					importance: 'i',
+				},
+				'Assessment B': {
+					class: 'X',
+					importance: 'I',
+				},
+			},
+			pageprops: {
+				propA: 'A',
+				propB: 'B',
+				propC: 'C',
+			},
+		} );
 	} );
 
 } );

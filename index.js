@@ -153,6 +153,26 @@ function getResponseRevisionByRevisionId( response, revisionId ) {
 }
 
 /**
+ * Like Array.from() but for Sets.
+ *
+ * @private
+ * @param {Object} iterable
+ * @param {Function} [mapFn]
+ * @param {*} [thisArg]
+ * @return {Set}
+ */
+function setFrom( iterable, mapFn, thisArg ) {
+	const set = new Set();
+	for ( let element of iterable ) {
+		if ( mapFn ) {
+			element = mapFn.call( thisArg, element );
+		}
+		set.add( element );
+	}
+	return set;
+}
+
+/**
  * @private
  * @param {Object} params Not modified.
  * @return {Object}
@@ -201,6 +221,51 @@ function makeParamsWithTitle( params, title ) {
 	}
 
 	return makeParams( { ...params, titles } );
+}
+
+/**
+ * @private
+ * @param {Object} params Not modified.
+ * @param {string|number} pageId
+ * @return {Object}
+ */
+function makeParamsWithPageId( params, pageId ) {
+	if ( params.generator !== undefined ) {
+		throw new RangeError(
+			'params.pageids cannot be used with generator ' +
+				'(pageids becomes the input for the generator)',
+		);
+	}
+
+	pageId = pageId.toString();
+
+	let pageids = params.pageids;
+	if ( pageids instanceof Set ) {
+		pageids = setFrom( pageids, ( element ) => element.toString() );
+		pageids.add( pageId );
+	} else if ( Array.isArray( pageids ) ) {
+		let included = false;
+		pageids = Array.from( pageids, ( element ) => {
+			element = element.toString();
+			if ( element === pageId ) {
+				included = true;
+			}
+			return element;
+		} );
+		if ( !included ) {
+			pageids.push( pageId );
+		}
+	} else if ( typeof pageids === 'string' ) {
+		pageids = new Set( [ pageids, pageId ] );
+	} else if ( typeof pageids === 'number' ) {
+		pageids = new Set( [ pageids.toString(), pageId ] );
+	} else if ( pageids === undefined ) {
+		pageids = new Set( [ pageId ] );
+	} else {
+		throw new RangeError( 'params.pageids must be Set, Array, string, number, or undefined' );
+	}
+
+	return makeParams( { ...params, pageids } );
 }
 
 const isArray = Array.isArray;
@@ -428,6 +493,122 @@ async function queryFullPageByTitle(
 }
 
 /**
+ * Make a single request for the given page and return it.
+ *
+ * The page might be incomplete due to limitations on the overall response size,
+ * and continuation may be required to acquire the complete page.
+ * Usually, you want to use {@link queryFullPageByPageId} instead.
+ *
+ * @param {Session} session An API session.
+ * @param {string} pageId The page ID of the page to query. TODO should also allow number
+ * @param {Object} [params] Other request parameters.
+ * You will usually want to specify at least the prop parameter.
+ * This may include the pageids parameter,
+ * in which case the given page ID will be added if necessary.
+ * @param {Object} [options] Request options.
+ * @return {Object} The page with the given page ID.
+ */
+async function queryPartialPageByPageId( session, pageId, params = {}, options = {} ) {
+	params = makeParamsWithPageId( params, pageId );
+	const response = await session.request( params, options );
+	return getResponsePageByPageId( response, pageId );
+}
+
+/**
+ * Make continued requests for the given page,
+ * and yield the partial pages from the results.
+ *
+ * The individual pages might be incomplete, but once iteration finishes,
+ * all the information should have been returned somewhere.
+ * See also {@link queryFullPageByPageId}, which merges the partial pages for you.
+ *
+ * @param {Session} session An API session.
+ * @param {string} pageId The page ID of the page to query.
+ * @param {Object} [params] Other request parameters.
+ * You will usually want to specify at least the prop parameter.
+ * This may include the pageids parameter,
+ * in which case the given page ID will be added if necessary.
+ * @param {Object} [options] Request options.
+ * @return {Object} One or more versions of the page with the given page ID.
+ */
+async function * queryIncrementalPageByPageId( session, pageId, params = {}, options = {} ) {
+	params = makeParamsWithPageId( params, pageId );
+	for await ( const response of session.requestAndContinue( params, options ) ) {
+		yield getResponsePageByPageId( response, pageId );
+		if ( 'batchcomplete' in response ) {
+			// there *should* be no continuation past this anyways,
+			// because we’re not using a generator,
+			// but let’s explicitly break from the loop just in case
+			break;
+		}
+	}
+}
+
+/**
+ * Query for the full data of the given page and return it.
+ *
+ * Since a single API request may return incomplete data,
+ * this function will automatically follow continuation as needed
+ * and merge the resulting pages into a single object, which it returns.
+ *
+ * Be careful when using this with prop=revisions:
+ * pages can have a large number of revisions,
+ * and trying to collect them all may take a long time,
+ * or even make the process run out of memory before finishing.
+ * The rvlimit parameter does not help with this,
+ * as it only limits the number of revisions per request,
+ * but does not stop continuation.
+ * Use rvstart/rvend/rvstartid/rvendid to limit the range of revisions,
+ * or use {@link queryIncrementalPageByPageId} instead of this function
+ * and stop iterating once you’ve received enough revisions.
+ *
+ * @param {Session} session An API session.
+ * @param {string} pageId The page ID of the page to query.
+ * @param {Object} [params] Other request parameters.
+ * You will usually want to specify at least the prop parameter.
+ * This may include the pageids parameter,
+ * in which case the given page ID will be added if necessary.
+ * @param {Object} [options] Request options.
+ * @param {mergeValues} [mergeValues] Callback to merge conflicting values.
+ * Called when merging versions of the page that have conflicting values for a key.
+ * The default implementation (which can be imported as mergeValues)
+ * will pick the earlier value when encountering different strings or numbers,
+ * accepting that these may be unstable between responses,
+ * and otherwise throw an error, assuming that other values should not vary.
+ * @return {Object} The full data of the page with the given page ID.
+ * (The data included will depend on the prop paramater –
+ * “full” means that partial responses are merged,
+ * not that the object includes all the information about the page
+ * that MediaWiki could possibly return.)
+ */
+async function queryFullPageByPageId(
+	session,
+	pageId,
+	params = {},
+	options = {},
+	mergeValues = mergeValuesInternal,
+) {
+	params = makeParamsWithPageId( params, pageId );
+	const reducer = ( page, response ) => {
+		const incr = getResponsePageByPageId( response, pageId );
+		mergeObjects( page, incr, mergeValues );
+		return page;
+	};
+	const initial = () => ( {} );
+
+	for await ( const page of session.requestAndContinueReducingBatch(
+		params,
+		options,
+		reducer,
+		initial,
+	) ) {
+		return page;
+	}
+
+	throw new Error( 'API finished continuation without completing a batch' );
+}
+
+/**
  * Query for the full data of a collection of pages,
  * yielding one full page at a time.
  *
@@ -496,6 +677,9 @@ export {
 	queryPartialPageByTitle,
 	queryIncrementalPageByTitle,
 	queryFullPageByTitle,
+	queryPartialPageByPageId,
+	queryIncrementalPageByPageId,
+	queryFullPageByPageId,
 	queryFullPages,
 	mergeValuesExternal as mergeValues,
 };
