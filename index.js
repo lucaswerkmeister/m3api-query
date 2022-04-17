@@ -460,7 +460,7 @@ async function * queryIncrementalPageByTitle( session, title, params = {}, optio
  * accepting that these may be unstable between responses,
  * and otherwise throw an error, assuming that other values should not vary.
  * @return {Object} The full data of the page with the given title.
- * (The data included will depend on the prop paramater –
+ * (The data included will depend on the prop parameter –
  * “full” means that partial responses are merged,
  * not that the object includes all the information about the page
  * that MediaWiki could possibly return.)
@@ -576,7 +576,7 @@ async function * queryIncrementalPageByPageId( session, pageId, params = {}, opt
  * accepting that these may be unstable between responses,
  * and otherwise throw an error, assuming that other values should not vary.
  * @return {Object} The full data of the page with the given page ID.
- * (The data included will depend on the prop paramater –
+ * (The data included will depend on the prop parameter –
  * “full” means that partial responses are merged,
  * not that the object includes all the information about the page
  * that MediaWiki could possibly return.)
@@ -629,7 +629,7 @@ async function queryFullPageByPageId(
  * accepting that these may be unstable between responses,
  * and otherwise throw an error, assuming that other values should not vary.
  * @return {Object} The full data of each returned page.
- * (The data included will depend on the prop paramater –
+ * (The data included will depend on the prop parameter –
  * “full” means that partial responses are merged,
  * not that the object includes all the information about the page
  * that MediaWiki could possibly return.)
