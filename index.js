@@ -173,6 +173,19 @@ function setFrom( iterable, mapFn, thisArg ) {
 }
 
 /**
+ * @param {Object} params
+ * @param {string} paramName
+ */
+function disallowGenerator( params, paramName ) {
+	if ( params.generator !== undefined ) {
+		throw new RangeError(
+			`params.${paramName} cannot be used with generator ` +
+				`(${paramName} becomes the input for the generator)`,
+		);
+	}
+}
+
+/**
  * @private
  * @param {Object} params Not modified.
  * @return {Object}
@@ -191,36 +204,84 @@ function makeParams( params ) {
 }
 
 /**
+ * Make params with an extra string param.
+ *
+ * @private
+ * @param {string} paramName
+ * @param {Object} params Not modified.
+ * @param {string} paramValue
+ * @return {Object}
+ */
+function makeParamsWithString( paramName, params, paramValue ) {
+	let values = params[ paramName ];
+	if ( values instanceof Set ) {
+		values = new Set( values );
+		values.add( paramValue );
+	} else if ( Array.isArray( values ) ) {
+		if ( !values.includes( paramValue ) ) {
+			values = [ ...values, paramValue ];
+		}
+	} else if ( typeof values === 'string' ) {
+		values = new Set( [ values, paramValue ] );
+	} else if ( values === undefined ) {
+		values = new Set( [ paramValue ] );
+	} else {
+		throw new RangeError( `params.${paramName} must be Set, Array, string, or undefined` );
+	}
+
+	return makeParams( { ...params, [ paramName ]: values } );
+}
+
+/**
+ * Make params with an extra param that can be a number or a string.
+ *
+ * @private
+ * @param {string} paramName
+ * @param {Object} params Not modified.
+ * @param {string|number} paramValue
+ * @return {Object}
+ */
+function makeParamsWithNumeric( paramName, params, paramValue ) {
+	paramValue = paramValue.toString();
+
+	let values = params[ paramName ];
+	if ( values instanceof Set ) {
+		values = setFrom( values, ( element ) => element.toString() );
+		values.add( paramValue );
+	} else if ( Array.isArray( values ) ) {
+		let included = false;
+		values = Array.from( values, ( element ) => {
+			element = element.toString();
+			if ( element === paramValue ) {
+				included = true;
+			}
+			return element;
+		} );
+		if ( !included ) {
+			values.push( paramValue );
+		}
+	} else if ( typeof values === 'string' ) {
+		values = new Set( [ values, paramValue ] );
+	} else if ( typeof values === 'number' ) {
+		values = new Set( [ values.toString(), paramValue ] );
+	} else if ( values === undefined ) {
+		values = new Set( [ paramValue ] );
+	} else {
+		throw new RangeError( `params.${paramName} must be Set, Array, string, number, or undefined` );
+	}
+
+	return makeParams( { ...params, [ paramName ]: values } );
+}
+
+/**
  * @private
  * @param {Object} params Not modified.
  * @param {string} title
  * @return {Object}
  */
 function makeParamsWithTitle( params, title ) {
-	if ( params.generator !== undefined ) {
-		throw new RangeError(
-			'params.titles cannot be used with generator ' +
-				'(titles becomes the input for the generator)',
-		);
-	}
-
-	let titles = params.titles;
-	if ( titles instanceof Set ) {
-		titles = new Set( titles );
-		titles.add( title );
-	} else if ( Array.isArray( titles ) ) {
-		if ( !titles.includes( title ) ) {
-			titles = [ ...titles, title ];
-		}
-	} else if ( typeof titles === 'string' ) {
-		titles = new Set( [ titles, title ] );
-	} else if ( titles === undefined ) {
-		titles = new Set( [ title ] );
-	} else {
-		throw new RangeError( 'params.titles must be Set, Array, string, or undefined' );
-	}
-
-	return makeParams( { ...params, titles } );
+	disallowGenerator( params, 'titles' );
+	return makeParamsWithString( 'titles', params, title );
 }
 
 /**
@@ -230,42 +291,8 @@ function makeParamsWithTitle( params, title ) {
  * @return {Object}
  */
 function makeParamsWithPageId( params, pageId ) {
-	if ( params.generator !== undefined ) {
-		throw new RangeError(
-			'params.pageids cannot be used with generator ' +
-				'(pageids becomes the input for the generator)',
-		);
-	}
-
-	pageId = pageId.toString();
-
-	let pageids = params.pageids;
-	if ( pageids instanceof Set ) {
-		pageids = setFrom( pageids, ( element ) => element.toString() );
-		pageids.add( pageId );
-	} else if ( Array.isArray( pageids ) ) {
-		let included = false;
-		pageids = Array.from( pageids, ( element ) => {
-			element = element.toString();
-			if ( element === pageId ) {
-				included = true;
-			}
-			return element;
-		} );
-		if ( !included ) {
-			pageids.push( pageId );
-		}
-	} else if ( typeof pageids === 'string' ) {
-		pageids = new Set( [ pageids, pageId ] );
-	} else if ( typeof pageids === 'number' ) {
-		pageids = new Set( [ pageids.toString(), pageId ] );
-	} else if ( pageids === undefined ) {
-		pageids = new Set( [ pageId ] );
-	} else {
-		throw new RangeError( 'params.pageids must be Set, Array, string, number, or undefined' );
-	}
-
-	return makeParams( { ...params, pageids } );
+	disallowGenerator( params, 'pageids' );
+	return makeParamsWithNumeric( 'pageids', params, pageId );
 }
 
 const isArray = Array.isArray;
