@@ -500,7 +500,7 @@ async function queryFullPageByTitle(
  * Usually, you want to use {@link queryFullPageByPageId} instead.
  *
  * @param {Session} session An API session.
- * @param {string} pageId The page ID of the page to query. TODO should also allow number
+ * @param {string|number} pageId The page ID of the page to query.
  * @param {Object} [params] Other request parameters.
  * You will usually want to specify at least the prop parameter.
  * This may include the pageids parameter,
@@ -523,7 +523,7 @@ async function queryPartialPageByPageId( session, pageId, params = {}, options =
  * See also {@link queryFullPageByPageId}, which merges the partial pages for you.
  *
  * @param {Session} session An API session.
- * @param {string} pageId The page ID of the page to query.
+ * @param {string|number} pageId The page ID of the page to query.
  * @param {Object} [params] Other request parameters.
  * You will usually want to specify at least the prop parameter.
  * This may include the pageids parameter,
@@ -563,7 +563,7 @@ async function * queryIncrementalPageByPageId( session, pageId, params = {}, opt
  * and stop iterating once you’ve received enough revisions.
  *
  * @param {Session} session An API session.
- * @param {string} pageId The page ID of the page to query.
+ * @param {string|number} pageId The page ID of the page to query.
  * @param {Object} [params] Other request parameters.
  * You will usually want to specify at least the prop parameter.
  * This may include the pageids parameter,
