@@ -11,6 +11,8 @@ import {
 	queryPartialPageByPageId,
 	queryIncrementalPageByPageId,
 	queryFullPageByPageId,
+	queryPotentialRevisionByRevisionId,
+	queryFullRevisionByRevisionId,
 	queryFullPages,
 } from '../../index.js';
 import chai, { expect } from 'chai';
@@ -1023,6 +1025,220 @@ describe( 'queryFullPageByPageId', () => {
 				propC: 'C',
 			},
 		} );
+	} );
+
+} );
+
+describe( 'queryPotentialRevisionByRevisionId', () => {
+
+	it( 'adds default params and returns revision', async () => {
+		const revisionId = '123';
+		const revision = { revid: revisionId };
+		const page = { revisions: [ revision ] };
+		const response = { query: { pages: [ page ] } };
+		const expectedParams = { action: 'query', revids: revisionId, prop: 'revisions' };
+		const session = singleGetSession( expectedParams, response );
+		let iteration = 0;
+		for await ( const response of queryPotentialRevisionByRevisionId( session, revisionId ) ) {
+			switch ( ++iteration ) {
+				case 1:
+					expect( response ).to.equal( revision );
+					break;
+				default:
+					throw new Error( `Unexpected iteration #${iteration}` );
+			}
+		}
+
+		expect( iteration ).to.equal( 1 );
+	} );
+
+	it( 'adds to existing params', async () => {
+		const revisionId = '123';
+		const revision = { revid: revisionId };
+		const otherRevisionId = '456';
+		const otherRevision = { revid: otherRevisionId };
+		const page = { revisions: [ revision, otherRevision ] };
+		const response = { query: { pages: [ page ] } };
+		const expectedParams = {
+			action: 'query',
+			revids: `${otherRevisionId}|${revisionId}`,
+			prop: 'otherprop|revisions',
+		};
+		const session = singleGetSession( expectedParams, response );
+		let iteration = 0;
+		for await ( const response of queryPotentialRevisionByRevisionId(
+			session,
+			revisionId,
+			{ revids: set( otherRevisionId ), prop: set( 'otherprop' ) },
+		) ) {
+			switch ( ++iteration ) {
+				case 1:
+					expect( response ).to.equal( revision );
+					break;
+				default:
+					throw new Error( `Unexpected iteration #${iteration}` );
+			}
+		}
+
+		expect( iteration ).to.equal( 1 );
+	} );
+
+	it( 'returns nulls until revision is found', async () => {
+		const revisionId = '123';
+		const revision = { revid: revisionId };
+		const otherRevisionA = { revid: '456' };
+		const otherRevisionB = { revid: '789' };
+		const response1 = {
+			query: { pages: [ { revisions: [ otherRevisionA ] } ] },
+			continue: { continue: 'B' },
+		};
+		const response2 = {
+			query: { pages: [ { revisions: [ otherRevisionB ] } ] },
+			continue: { continue: 'C' },
+		};
+		const response3 = {
+			query: { pages: [ { revisions: [ revision ] } ] },
+			batchcomplete: true,
+		};
+		let call = 0;
+		class TestSession extends BaseTestSession {
+			async internalGet( params ) {
+				switch ( ++call ) {
+					case 1:
+						expect( params ).to.eql( {
+							action: 'query',
+							revids: revisionId,
+							prop: 'revisions',
+							format: 'json',
+						} );
+						return successfulResponse( response1 );
+					case 2:
+						expect( params ).to.eql( {
+							action: 'query',
+							revids: revisionId,
+							prop: 'revisions',
+							continue: 'B',
+							format: 'json',
+						} );
+						return successfulResponse( response2 );
+					case 3:
+						expect( params ).to.eql( {
+							action: 'query',
+							revids: revisionId,
+							prop: 'revisions',
+							continue: 'C',
+							format: 'json',
+						} );
+						return successfulResponse( response3 );
+					default:
+						throw new Error( `Unexpected call #${call}` );
+				}
+			}
+		}
+
+		const session = new TestSession();
+		let iteration = 0;
+		for await ( const response of queryPotentialRevisionByRevisionId(
+			session,
+			revisionId,
+		) ) {
+			switch ( ++iteration ) {
+				case 1:
+				case 2:
+					expect( response ).to.be.null;
+					break;
+				case 3:
+					expect( response ).to.equal( revision );
+					break;
+				default:
+					throw new Error( `Unexpected iteration #${iteration}` );
+			}
+		}
+
+		expect( call ).to.equal( 3 );
+		expect( iteration ).to.equal( 3 );
+	} );
+
+} );
+
+describe( 'queryFullRevisionByRevisionId', () => {
+
+	// param handling already covered by the queryPotentialRevisionByRevisionId tests
+
+	it( 'returns first found revision', async () => {
+		const revisionId = '123';
+		const revision = { revid: revisionId };
+		const otherRevisionA = { revid: '456' };
+		const otherRevisionB = { revid: '789' };
+		const response1 = {
+			query: { pages: [ { revisions: [ otherRevisionA ] } ] },
+			continue: { continue: 'B' },
+		};
+		const response2 = {
+			query: { pages: [ { revisions: [ otherRevisionB ] } ] },
+			continue: { continue: 'C' },
+		};
+		const response3 = {
+			query: { pages: [ { revisions: [ revision ] } ] },
+			batchcomplete: true,
+		};
+		let call = 0;
+		class TestSession extends BaseTestSession {
+			async internalGet( params ) {
+				switch ( ++call ) {
+					case 1:
+						expect( params ).to.eql( {
+							action: 'query',
+							revids: revisionId,
+							prop: 'revisions',
+							format: 'json',
+						} );
+						return successfulResponse( response1 );
+					case 2:
+						expect( params ).to.eql( {
+							action: 'query',
+							revids: revisionId,
+							prop: 'revisions',
+							continue: 'B',
+							format: 'json',
+						} );
+						return successfulResponse( response2 );
+					case 3:
+						expect( params ).to.eql( {
+							action: 'query',
+							revids: revisionId,
+							prop: 'revisions',
+							continue: 'C',
+							format: 'json',
+						} );
+						return successfulResponse( response3 );
+					default:
+						throw new Error( `Unexpected call #${call}` );
+				}
+			}
+		}
+
+		const session = new TestSession();
+		expect( await queryFullRevisionByRevisionId( session, revisionId ) ).to.equal( revision );
+	} );
+
+	it( 'drops truncated result warning', async () => {
+		const revisionId = '123';
+		const revision = { revid: revisionId };
+		const page = { revisions: [ revision ] };
+		const response = {
+			query: { pages: [ page ] },
+			warnings: [ { code: 'truncatedresult' } ],
+			batchcomplete: true,
+		};
+		const expectedParams = {
+			action: 'query',
+			revids: revisionId,
+			prop: 'revisions',
+		};
+
+		const session = singleGetSession( expectedParams, response );
+		expect( await queryFullRevisionByRevisionId( session, revisionId ) ).to.equal( revision );
 	} );
 
 } );
