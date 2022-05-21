@@ -670,6 +670,7 @@ async function queryFullPageByPageId(
  * Likewise, this may include the prop parameter,
  * in which case prop=revisions will be added if necessary.
  * @param {Object} [options] Request options.
+ * The dropTruncatedResultWarning option defaults to true here.
  * @return {Object|null} Zero or more nulls, then the revision with the given revision ID.
  */
 async function * queryPotentialRevisionByRevisionId(
@@ -679,6 +680,10 @@ async function * queryPotentialRevisionByRevisionId(
 	options = {},
 ) {
 	params = makeParamsWithRevisionId( params, revisionId );
+	options = {
+		dropTruncatedResultWarning: true,
+		...options,
+	};
 	for await ( const response of session.requestAndContinue( params, options ) ) {
 		const revision = getResponseRevisionByRevisionId( response, revisionId );
 		yield revision;
@@ -703,6 +708,7 @@ async function * queryPotentialRevisionByRevisionId(
  * Likewise, this may include the prop parameter,
  * in which case prop=revisions will be added if necessary.
  * @param {Object} [options] Request options.
+ * The dropTruncatedResultWarning option defaults to true here.
  * @return {Object} The data of the revision with the given revision ID.
  * (The data included will depend on the rvprop parameter – the “full” name
  * is by analogy with {@link queryFullPageByTitle} and {@link queryFullPageByPageId},
@@ -716,24 +722,18 @@ async function queryFullRevisionByRevisionId(
 	options = {},
 ) {
 	params = makeParamsWithRevisionId( params, revisionId );
-	const reducer = ( revision, response ) => {
-		if ( revision === null ) {
-			revision = getResponseRevisionByRevisionId( response, revisionId );
-		}
-		return revision;
+	options = {
+		dropTruncatedResultWarning: true,
+		...options,
 	};
-	const initial = () => null;
-
-	for await ( const revision of session.requestAndContinueReducingBatch(
-		params,
-		options,
-		reducer,
-		initial,
-	) ) {
-		return revision;
+	for await ( const response of session.requestAndContinue( params, options ) ) {
+		const revision = getResponseRevisionByRevisionId( response, revisionId );
+		if ( revision !== null ) {
+			return revision;
+		}
 	}
 
-	throw new Error( 'API finished continuation without completing a batch' );
+	throw new Error( 'API finished continuation without returning the revision' );
 }
 
 /**

@@ -1159,6 +1159,34 @@ describe( 'queryPotentialRevisionByRevisionId', () => {
 		expect( iteration ).to.equal( 3 );
 	} );
 
+	it( 'drops truncated result warning', async () => {
+		const revisionId = '123';
+		const revision = { revid: revisionId };
+		const page = { revisions: [ revision ] };
+		const response = { query: { pages: [ page ] }, warnings: [ { code: 'truncatedresult' } ] };
+		const expectedParams = {
+			action: 'query',
+			revids: revisionId,
+			prop: 'revisions',
+		};
+		const session = singleGetSession( expectedParams, response );
+		let iteration = 0;
+		for await ( const response of queryPotentialRevisionByRevisionId(
+			session,
+			revisionId,
+		) ) {
+			switch ( ++iteration ) {
+				case 1:
+					expect( response ).to.equal( revision );
+					break;
+				default:
+					throw new Error( `Unexpected iteration #${iteration}` );
+			}
+		}
+
+		expect( iteration ).to.equal( 1 );
+	} );
+
 } );
 
 describe( 'queryFullRevisionByRevisionId', () => {
@@ -1180,7 +1208,7 @@ describe( 'queryFullRevisionByRevisionId', () => {
 		};
 		const response3 = {
 			query: { pages: [ { revisions: [ revision ] } ] },
-			batchcomplete: true,
+			continue: { continue: 'D' }, // should not follow this continuation
 		};
 		let call = 0;
 		class TestSession extends BaseTestSession {
