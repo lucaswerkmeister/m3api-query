@@ -15,6 +15,7 @@ import {
 	queryPotentialRevisionByRevisionId,
 	queryFullRevisionByRevisionId,
 	queryFullPages,
+	queryFullRevisions,
 } from '../../index.js';
 import chai, { expect } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
@@ -1420,6 +1421,67 @@ describe( 'queryFullPages', () => {
 		}
 
 		expect( iteration ).to.equal( 2 );
+	} );
+
+} );
+
+describe( 'queryFullRevisions', () => {
+
+	it( 'follows continuation and returns revisions with page attached', async () => {
+		const session = sequentialGetSession( [
+			{
+				expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', rvprop: 'i' },
+				response: { query: { pages: [
+					{ pageid: 1, revisions: [ { revid: 11 } ] },
+					{ pageid: 2, revisions: [ { revid: 21 } ] },
+				] }, continue: { rc: '21' } },
+			},
+			{
+				expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', rvprop: 'i', rc: '21' },
+				response: { query: { pages: [
+					{ pageid: 2, revisions: [ { revid: 22 } ] },
+				] }, continue: { rc: '22' }, batchcomplete: true },
+			},
+			{
+				expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', rvprop: 'i', rc: '22' },
+				response: { query: { pages: [
+					{ pageid: 3, revisions: [ { revid: 31 }, { revid: 32 } ] },
+				] }, batchcomplete: true },
+			},
+		] );
+
+		let iteration = 0;
+		for await ( const revision of queryFullRevisions( session, {
+			generator: 'ar', // “allrevisions”, abbreviated for shorter (one-line) expectedParams above
+			rvprop: [ 'i' ], // “ids”, likewise abbreviated
+		} ) ) {
+			switch ( ++iteration ) {
+				case 1:
+					expect( revision ).to.eql( { revid: 11 } );
+					expect( revision[ pageOfRevision ] ).to.eql( { pageid: 1 } );
+					break;
+				case 2:
+					expect( revision ).to.eql( { revid: 21 } );
+					expect( revision[ pageOfRevision ] ).to.eql( { pageid: 2 } );
+					break;
+				case 3:
+					expect( revision ).to.eql( { revid: 22 } );
+					expect( revision[ pageOfRevision ] ).to.eql( { pageid: 2 } );
+					break;
+				case 4:
+					expect( revision ).to.eql( { revid: 31 } );
+					expect( revision[ pageOfRevision ] ).to.eql( { pageid: 3 } );
+					break;
+				case 5:
+					expect( revision ).to.eql( { revid: 32 } );
+					expect( revision[ pageOfRevision ] ).to.eql( { pageid: 3 } );
+					break;
+				default:
+					throw new Error( `Unexpected iteration #${iteration}` );
+			}
+		}
+
+		expect( iteration ).to.equal( 5 );
 	} );
 
 } );

@@ -509,8 +509,8 @@ async function * queryIncrementalPageByTitle( session, title, params = {}, optio
  * as it only limits the number of revisions per request,
  * but does not stop continuation.
  * Use rvstart/rvend/rvstartid/rvendid to limit the range of revisions,
- * or use {@link queryIncrementalPageByTitle} instead of this function
- * and stop iterating once you’ve received enough revisions.
+ * or use {@link queryFullRevisions} or {@link queryIncrementalPageByTitle}
+ * instead of this function and stop iterating once you’ve received enough revisions.
  *
  * @param {Session} session An API session.
  * @param {string} title The title of the page to query.
@@ -829,6 +829,54 @@ async function * queryFullPages(
 	}
 }
 
+/**
+ * Query for the full data of a collection of revisions,
+ * yielding one full revision at a time.
+ *
+ * Useful with generators, but also with prop=revisions for a single page.
+ * Stop iterating over the returned iterator to stop making further API requests.
+ *
+ * @param {Session} session An API session.
+ * @param {Object} params Request parameters.
+ * You will usually want to specify rvprop,
+ * to determine the properties of each returned revision.
+ * @param {Object} [options] Request options.
+ * The dropTruncatedResultWarning option defaults to true here.
+ * @return {Object} The full data of each returned revision.
+ * (The data included will depend on the rvprop parameter –
+ * the “full” name is by analogy with {@link queryFullPages},
+ * the object does not necessarily include all the information about the revisions
+ * that MediaWiki could possibly return.)
+ * Each revision will have the corresponding page object, without its revisions,
+ * attached using {@link pageOfRevision} as the key;
+ * its contents will similarly depend on the request parameter, especially prop.
+ */
+async function * queryFullRevisions(
+	session,
+	params,
+	options = {},
+) {
+	params = makeParamsWithString( 'prop', params, 'revisions' );
+	options = {
+		dropTruncatedResultWarning: true,
+		...options,
+	};
+
+	for await ( const response of session.requestAndContinue( params, options ) ) {
+		const query = response.query || {};
+		let pages = query.pages || [];
+		if ( !Array.isArray( pages ) ) {
+			pages = Object.values( pages );
+		}
+		for ( const page of pages ) {
+			const { revisions, ...remainingPage } = page;
+			for ( const revision of revisions || [] ) {
+				yield revisionWithPage( revision, remainingPage );
+			}
+		}
+	}
+}
+
 export {
 	pageOfRevision,
 	getResponsePageByTitle,
@@ -843,5 +891,6 @@ export {
 	queryPotentialRevisionByRevisionId,
 	queryFullRevisionByRevisionId,
 	queryFullPages,
+	queryFullRevisions,
 	mergeValuesExternal as mergeValues,
 };
