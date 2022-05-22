@@ -45,6 +45,16 @@ If the API doesn’t return the full page information in a single response,
 the function automatically follows continuation
 and merges the responses back into a single object.
 
+### queryFullPageByPageId
+
+Just like `queryFullPageByTitle`, but the second argument is a page ID instead of a title.
+(The page ID can be given as a number or as a numeric string.)
+
+### queryFullRevisionByRevisionId
+
+Similar to `queryFullPageByPageId`, but returns a revision instead of a page.
+
+
 ### queryFullPages
 
 Get the full data for a collection of pages,
