@@ -249,7 +249,7 @@ describe( 'getResponseRevisionByRevisionId', () => {
 		expect( getResponseRevisionByRevisionId( response, revid ) ).to.equal( revision );
 	} );
 
-	it( 'does not find page with different ID', () => {
+	it( 'does not find revision with different ID', () => {
 		const revid = 123;
 		const revision = { revid };
 		const page = { revisions: [ revision ] };
