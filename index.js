@@ -1,4 +1,27 @@
 /**
+ * @type {symbol} A symbol that is used to attach the surrounding page to a revision object,
+ * as returned by {@link getResponseRevisionByRevisionId},
+ * {@link queryPotentialRevisionByRevisionId}, and {@queryFullRevisionByRevisionId}.
+ */
+const pageOfRevision = Symbol( 'pageOfRevision' );
+
+/**
+ * Attach the given page to the given revision.
+ *
+ * @param {Object} revision Not modified
+ * @param {Object} page
+ * @return {Object} The revision, with the page attached using {@link pageOfRevision}.
+ */
+function revisionWithPage( revision, page ) {
+	return Object.defineProperty( { ...revision }, pageOfRevision, {
+		value: page,
+		configurable: true,
+		enuberable: false,
+		writable: true,
+	} );
+}
+
+/**
  * Get the page with the given title out of an API response.
  *
  * Accounts for normalized titles and redirects in the response,
@@ -110,6 +133,9 @@ function getResponsePageByPageId( response, pageId ) {
  * Otherwise, the contents of the revision object will depend
  * on the parameters with which the request was made,
  * especially the rvprop parameter.
+ * The corresponding page object, without its revisions,
+ * is attached using {@link pageOfRevision} as the key;
+ * its contents will similarly depend on the request parameters, especially prop.
  */
 function getResponseRevisionByRevisionId( response, revisionId ) {
 	if ( typeof revisionId === 'number' ) {
@@ -142,10 +168,10 @@ function getResponseRevisionByRevisionId( response, revisionId ) {
 	// if there is more than one page in the whole response,
 	// so at least one of the loops is iterating over a single element
 	for ( const page of pages ) {
-		const revisions = page.revisions || [];
-		for ( const revision of revisions ) {
+		const { revisions, ...remainingPage } = page;
+		for ( const revision of revisions || [] ) {
 			if ( revisionId === revision.revid.toString() ) {
-				return revision;
+				return revisionWithPage( revision, remainingPage );
 			}
 		}
 	}
@@ -672,6 +698,8 @@ async function queryFullPageByPageId(
  * @param {Object} [options] Request options.
  * The dropTruncatedResultWarning option defaults to true here.
  * @return {Object|null} Zero or more nulls, then the revision with the given revision ID.
+ * The non-null revision will have the corresponding page object, without its revisions,
+ * attached using {@link pageOfRevision} as the key.
  */
 async function * queryPotentialRevisionByRevisionId(
 	session,
@@ -714,6 +742,9 @@ async function * queryPotentialRevisionByRevisionId(
  * is by analogy with {@link queryFullPageByTitle} and {@link queryFullPageByPageId},
  * the object does not necessarily include all the information about the revision
  * that MediaWiki could possibly return.)
+ * The revision will have the corresponding page object, without its revisions,
+ * attached using {@link pageOfRevision} as the key;
+ * its contents will similarly depend on the request parameter, especially prop.
  */
 async function queryFullRevisionByRevisionId(
 	session,
@@ -799,6 +830,7 @@ async function * queryFullPages(
 }
 
 export {
+	pageOfRevision,
 	getResponsePageByTitle,
 	getResponsePageByPageId,
 	getResponseRevisionByRevisionId,

@@ -2,6 +2,7 @@
 
 import { Session, set } from 'm3api/core.js';
 import {
+	pageOfRevision,
 	getResponsePageByTitle,
 	getResponsePageByPageId,
 	getResponseRevisionByRevisionId,
@@ -236,7 +237,7 @@ describe( 'getResponseRevisionByRevisionId', () => {
 		const page = { revisions: [ revision, unrelatedRevision ] };
 		const unrelatedPage = { revisions: [ { revid: 789 } ] };
 		const response = { query: { pages: { 34: unrelatedPage, 12: page } } };
-		expect( getResponseRevisionByRevisionId( response, revid ) ).to.equal( revision );
+		expect( getResponseRevisionByRevisionId( response, revid ) ).to.eql( revision );
 	} );
 
 	it( 'finds revision with ID, formatversion=2', () => {
@@ -246,7 +247,7 @@ describe( 'getResponseRevisionByRevisionId', () => {
 		const page = { revisions: [ revision, unrelatedRevision ] };
 		const unrelatedPage = { revisions: [ { revid: 789 } ] };
 		const response = { query: { pages: [ unrelatedPage, page ] } };
-		expect( getResponseRevisionByRevisionId( response, revid ) ).to.equal( revision );
+		expect( getResponseRevisionByRevisionId( response, revid ) ).to.eql( revision );
 	} );
 
 	it( 'does not find revision with different ID', () => {
@@ -266,7 +267,7 @@ describe( 'getResponseRevisionByRevisionId', () => {
 				const page = { revisions: [ revision ] };
 				const response = { query: { pages: [ page ] } };
 				expect( getResponseRevisionByRevisionId( response, paramType( revid ) ) )
-					.to.equal( revision );
+					.to.eql( revision );
 			} );
 		}
 	}
@@ -277,7 +278,7 @@ describe( 'getResponseRevisionByRevisionId', () => {
 			const revid = 123;
 			const revision = { revid, missing: true };
 			const response = { query: { badrevids: { [ revid ]: revision } } };
-			expect( getResponseRevisionByRevisionId( response, revid ) ).to.equal( revision );
+			expect( getResponseRevisionByRevisionId( response, revid ) ).to.eql( revision );
 		} );
 
 		const revid = 123;
@@ -300,6 +301,32 @@ describe( 'getResponseRevisionByRevisionId', () => {
 	it( 'handles empty response', () => {
 		const response = { batchcomplete: true /* no query */ };
 		expect( getResponseRevisionByRevisionId( response, 123 ) ).to.be.null;
+	} );
+
+	describe( 'attaches page using pageOfRevision', () => {
+
+		it( 'page without revisions, using correct property descriptor', () => {
+			const revid = 123;
+			const revision = { revid };
+			const page = { pageid: 456, revisions: [ revision ] };
+			const response = { query: { pages: [ page ] } };
+			expect( getResponseRevisionByRevisionId( response, revid ) )
+				.to.have.ownPropertyDescriptor( pageOfRevision, {
+					value: { pageid: 456 /* no revisions */ },
+					configurable: true,
+					enumerable: false,
+					writable: true,
+				} );
+		} );
+
+		it( 'not on missing revision', () => {
+			const revid = 123;
+			const revision = { revid, missing: true };
+			const response = { query: { badrevids: { [ revid ]: revision } } };
+			expect( getResponseRevisionByRevisionId( response, revid ) )
+				.not.to.have.property( pageOfRevision );
+		} );
+
 	} );
 
 } );
@@ -1031,10 +1058,10 @@ describe( 'queryFullPageByPageId', () => {
 
 describe( 'queryPotentialRevisionByRevisionId', () => {
 
-	it( 'adds default params and returns revision', async () => {
+	it( 'adds default params and returns revision with page attached', async () => {
 		const revisionId = '123';
 		const revision = { revid: revisionId };
-		const page = { revisions: [ revision ] };
+		const page = { pageid: 456, revisions: [ revision ] };
 		const response = { query: { pages: [ page ] } };
 		const expectedParams = { action: 'query', revids: revisionId, prop: 'revisions' };
 		const session = singleGetSession( expectedParams, response );
@@ -1042,7 +1069,8 @@ describe( 'queryPotentialRevisionByRevisionId', () => {
 		for await ( const response of queryPotentialRevisionByRevisionId( session, revisionId ) ) {
 			switch ( ++iteration ) {
 				case 1:
-					expect( response ).to.equal( revision );
+					expect( response ).to.eql( revision );
+					expect( response[ pageOfRevision ] ).to.eql( { pageid: 456 } );
 					break;
 				default:
 					throw new Error( `Unexpected iteration #${iteration}` );
@@ -1073,7 +1101,7 @@ describe( 'queryPotentialRevisionByRevisionId', () => {
 		) ) {
 			switch ( ++iteration ) {
 				case 1:
-					expect( response ).to.equal( revision );
+					expect( response ).to.eql( revision );
 					break;
 				default:
 					throw new Error( `Unexpected iteration #${iteration}` );
@@ -1148,7 +1176,7 @@ describe( 'queryPotentialRevisionByRevisionId', () => {
 					expect( response ).to.be.null;
 					break;
 				case 3:
-					expect( response ).to.equal( revision );
+					expect( response ).to.eql( revision );
 					break;
 				default:
 					throw new Error( `Unexpected iteration #${iteration}` );
@@ -1177,7 +1205,7 @@ describe( 'queryPotentialRevisionByRevisionId', () => {
 		) ) {
 			switch ( ++iteration ) {
 				case 1:
-					expect( response ).to.equal( revision );
+					expect( response ).to.eql( revision );
 					break;
 				default:
 					throw new Error( `Unexpected iteration #${iteration}` );
@@ -1193,7 +1221,7 @@ describe( 'queryFullRevisionByRevisionId', () => {
 
 	// param handling already covered by the queryPotentialRevisionByRevisionId tests
 
-	it( 'returns first found revision', async () => {
+	it( 'returns first found revision with page attached', async () => {
 		const revisionId = '123';
 		const revision = { revid: revisionId };
 		const otherRevisionA = { revid: '456' };
@@ -1207,7 +1235,7 @@ describe( 'queryFullRevisionByRevisionId', () => {
 			continue: { continue: 'C' },
 		};
 		const response3 = {
-			query: { pages: [ { revisions: [ revision ] } ] },
+			query: { pages: [ { revisions: [ revision ], pageid: 12345 } ] },
 			continue: { continue: 'D' }, // should not follow this continuation
 		};
 		let call = 0;
@@ -1247,7 +1275,9 @@ describe( 'queryFullRevisionByRevisionId', () => {
 		}
 
 		const session = new TestSession();
-		expect( await queryFullRevisionByRevisionId( session, revisionId ) ).to.equal( revision );
+		const returnedRevision = await queryFullRevisionByRevisionId( session, revisionId );
+		expect( returnedRevision ).to.eql( revision );
+		expect( returnedRevision[ pageOfRevision ] ).to.eql( { pageid: 12345 } );
 	} );
 
 	it( 'drops truncated result warning', async () => {
@@ -1266,7 +1296,7 @@ describe( 'queryFullRevisionByRevisionId', () => {
 		};
 
 		const session = singleGetSession( expectedParams, response );
-		expect( await queryFullRevisionByRevisionId( session, revisionId ) ).to.equal( revision );
+		expect( await queryFullRevisionByRevisionId( session, revisionId ) ).to.eql( revision );
 	} );
 
 } );
