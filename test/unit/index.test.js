@@ -1484,4 +1484,30 @@ describe( 'queryFullRevisions', () => {
 		expect( iteration ).to.equal( 5 );
 	} );
 
+	it( 'returns missing revisions', async () => {
+		const expectedParams = { action: 'query', prop: 'revisions' };
+		const response = { query: {
+			badrevids: { 123: { revid: 123 } },
+			pages: [ { pageid: 456, revisions: [ { revid: 789 } ] } ],
+			batchcomplete: true,
+		} };
+		const session = singleGetSession( expectedParams, response );
+
+		let iteration = 0;
+		for await ( const revision of queryFullRevisions( session, {} ) ) {
+			switch ( ++iteration ) {
+				case 1:
+					expect( revision ).to.eql( { revid: 123, missing: true } );
+					expect( revision ).not.to.have.property( pageOfRevision );
+					break;
+				case 2:
+					expect( revision ).to.eql( { revid: 789 } );
+					expect( revision[ pageOfRevision ] ).to.eql( { pageid: 456 } );
+					break;
+			}
+		}
+
+		expect( iteration ).to.equal( 2 );
+	} );
+
 } );

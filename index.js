@@ -22,6 +22,31 @@ function revisionWithPage( revision, page ) {
 }
 
 /**
+ * Get an object representing a missing revision,
+ * ensuring the "missing" key is present
+ * even if it’s not in the object as returned by MediaWiki.
+ *
+ * @param {Object} revision Not modified.
+ * @param {Object} response The full response, for formatversion detection.
+ * The caller is assumed to have this in a local variable already.
+ * @param {Object} query The query part of the response. Likewise.
+ * @return {Object} The revision, with "missing" added if needed.
+ */
+function missingRevision( revision, response, query ) {
+	if ( 'missing' in revision ) {
+		return revision;
+	} else {
+		// add "missing" to response from older MediaWiki (pre-T301041)
+		const formatversion2 = typeof response.batchcomplete === 'boolean' ||
+			Array.isArray( query.pages );
+		return {
+			...revision,
+			missing: formatversion2 ? true : '',
+		};
+	}
+}
+
+/**
  * Get the page with the given title out of an API response.
  *
  * Accounts for normalized titles and redirects in the response,
@@ -145,18 +170,7 @@ function getResponseRevisionByRevisionId( response, revisionId ) {
 	const query = response.query || {};
 
 	if ( query.badrevids && query.badrevids[ revisionId ] ) {
-		const badRevision = query.badrevids[ revisionId ];
-		if ( 'missing' in badRevision ) {
-			return badRevision;
-		} else {
-			// add "missing" to response from older MediaWiki (pre-T301041)
-			const formatversion2 = typeof response.batchcomplete === 'boolean' ||
-				Array.isArray( query.pages );
-			return {
-				...badRevision,
-				missing: formatversion2 ? true : '',
-			};
-		}
+		return missingRevision( query.badrevids[ revisionId ], response, query );
 	}
 
 	let pages = query.pages || [];
@@ -864,6 +878,11 @@ async function * queryFullRevisions(
 
 	for await ( const response of session.requestAndContinue( params, options ) ) {
 		const query = response.query || {};
+
+		for ( const revision of Object.values( query.badrevids || {} ) ) {
+			yield missingRevision( revision, response, query );
+		}
+
 		let pages = query.pages || [];
 		if ( !Array.isArray( pages ) ) {
 			pages = Object.values( pages );
