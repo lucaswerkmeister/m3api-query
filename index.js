@@ -1,3 +1,5 @@
+import { set } from 'm3api/core.js';
+
 /**
  * @type {symbol} A symbol that is used to attach the surrounding page to a revision object,
  * as returned by {@link getResponseRevisionByRevisionId},
@@ -262,9 +264,9 @@ function makeParamsWithString( paramName, params, paramValue ) {
 			values = [ ...values, paramValue ];
 		}
 	} else if ( typeof values === 'string' ) {
-		values = new Set( [ values, paramValue ] );
+		values = set( values, paramValue );
 	} else if ( values === undefined ) {
-		values = new Set( [ paramValue ] );
+		values = set( paramValue );
 	} else {
 		throw new RangeError( `params.${paramName} must be Set, Array, string, or undefined` );
 	}
@@ -301,11 +303,11 @@ function makeParamsWithNumeric( paramName, params, paramValue ) {
 			values.push( paramValue );
 		}
 	} else if ( typeof values === 'string' ) {
-		values = new Set( [ values, paramValue ] );
+		values = set( values, paramValue );
 	} else if ( typeof values === 'number' ) {
-		values = new Set( [ values.toString(), paramValue ] );
+		values = set( values.toString(), paramValue );
 	} else if ( values === undefined ) {
-		values = new Set( [ paramValue ] );
+		values = set( paramValue );
 	} else {
 		throw new RangeError( `params.${paramName} must be Set, Array, string, number, or undefined` );
 	}
