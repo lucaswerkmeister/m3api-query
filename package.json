@@ -21,7 +21,7 @@
 	"author": "Lucas Werkmeister <mail@lucaswerkmeister.de>",
 	"license": "ISC",
 	"engines": {
-		"node": ">=14.0.0"
+		"node": "^12.22.0 || >=14.17.0"
 	},
 	"peerDependencies": {
 		"m3api": "^0.6.1"
