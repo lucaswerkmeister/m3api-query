@@ -741,7 +741,12 @@ describe( 'queryFullPageByTitle', () => {
 				response: { query: { pages: [ { title, a: { b: 2 } } ] }, batchcomplete: true },
 			},
 		] );
-		const page = await queryFullPageByTitle( session, title, {}, {}, mergeValues );
+		const page = await queryFullPageByTitle(
+			session,
+			title,
+			{},
+			{ 'm3api-query/mergeValues': mergeValues },
+		);
 		expect( page ).to.eql( { title, a: { b: 3, '-test-b': [ 1, 2 ] } } );
 		expect( called ).to.be.true;
 	} );

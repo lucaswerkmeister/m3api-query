@@ -1,4 +1,7 @@
-import { set } from 'm3api/core.js';
+import {
+	DEFAULT_OPTIONS,
+	set,
+} from 'm3api/core.js';
 
 /**
  * @type {symbol} A symbol that is used to attach the surrounding page to a revision object,
@@ -375,50 +378,41 @@ function isObject( value ) {
  */
 
 /**
- * Make a default mergeValues function.
+ * The default mergeValues implementation.
+ * If both values are strings or both are numbers,
+ * it arbitrarily picks the earlier value,
+ * accepting that values of these types may be unstable between responses.
+ * In all other cases, an error is thrown,
+ * assuming that other values should not vary.
  *
- * @param {boolean} internal Whether this is the internal or external version.
- * Only affects the error message.
- * @return {mergeValues}
+ * @type {mergeValues}
  */
-function mergeValuesFunction( internal ) {
-	return function mergeValues( base, incremental, path ) {
-		const baseType = typeof base;
+function mergeValues( base, incremental, path ) {
+	const baseType = typeof base;
 
-		if ( baseType === typeof incremental && (
-			baseType === 'string' || baseType === 'number' ) ) {
-			// accept that these can be unstable, arbitrarily pick the earlier value
-			return base;
-		}
+	if ( baseType === typeof incremental && (
+		baseType === 'string' || baseType === 'number' ) ) {
+		return base;
+	}
 
-		// in all other cases, throw an error
-		function format( value ) {
-			if ( value === null ) {
-				return 'null';
-			}
-			if ( isArray( value ) ) {
-				return 'array';
-			}
-			if ( isObject( value ) ) {
-				return 'object';
-			}
-			return `${typeof value} (${value})`;
+	function format( value ) {
+		if ( value === null ) {
+			return 'null';
 		}
+		if ( isArray( value ) ) {
+			return 'array';
+		}
+		if ( isObject( value ) ) {
+			return 'object';
+		}
+		return `${typeof value} (${value})`;
+	}
 
-		let message = `Error merging objects from two responses at ${path}: ` +
-			`Cannot merge ${format( base )} with ${format( incremental )}`;
-		if ( internal ) {
-			message += '\n\nThis is probably a bug, please report it at ' +
-				'<https://github.com/lucaswerkmeister/m3api-query/issues/>.';
-		} else {
-			message += '\n\nThis may be a bug in your mergeValues function.';
-		}
-		throw new Error( message );
-	};
+	throw new Error(
+		`Error merging objects from two responses at ${path}: ` +
+			`Cannot merge ${format( base )} with ${format( incremental )}`,
+	);
 }
-
-const mergeValuesInternal = mergeValuesFunction( true );
-const mergeValuesExternal = mergeValuesFunction( false );
 
 /**
  * Merge the incremental object into the base one.
@@ -457,6 +451,22 @@ function mergeObjects( base, incremental, mergeValues, basePath = '' ) {
 		base[ key ] = mergeValues( baseValue, incrementalValue, path, base, key );
 	}
 }
+
+/**
+ * Request options understood by this package.
+ * All other options will be passed through to m3api.
+ *
+ * @typedef Options
+ * @type {Object}
+ * @property {mergeValues} ['m3api-query/mergeValues']
+ * Callback to merge conflicting values.
+ * Called when merging versions of the page that have conflicting values for a key.
+ * Defaults to {@link mergeValues}.
+ */
+
+Object.assign( DEFAULT_OPTIONS, {
+	'm3api-query/mergeValues': mergeValues,
+} );
 
 /**
  * Make a single request for the given page and return it.
@@ -534,13 +544,8 @@ async function * queryIncrementalPageByTitle( session, title, params = {}, optio
  * You will usually want to specify at least the prop parameter.
  * This may include the titles parameter,
  * in which case the given title will be added if necessary.
- * @param {Object} [options] Request options.
- * @param {mergeValues} [mergeValues] Callback to merge conflicting values.
- * Called when merging versions of the page that have conflicting values for a key.
- * The default implementation (which can be imported as mergeValues)
- * will pick the earlier value when encountering different strings or numbers,
- * accepting that these may be unstable between responses,
- * and otherwise throw an error, assuming that other values should not vary.
+ * @param {Options} [options] Request options,
+ * including custom options for this package (see the type documentation).
  * @return {Object} The full data of the page with the given title.
  * (The data included will depend on the prop parameter –
  * “full” means that partial responses are merged,
@@ -552,8 +557,15 @@ async function queryFullPageByTitle(
 	title,
 	params = {},
 	options = {},
-	mergeValues = mergeValuesInternal,
 ) {
+	const {
+		'm3api-query/mergeValues': mergeValues,
+	} = {
+		...DEFAULT_OPTIONS,
+		...session.defaultOptions,
+		...options,
+	};
+
 	params = makeParamsWithTitle( params, title );
 	const reducer = ( page, response ) => {
 		const incr = getResponsePageByTitle( response, title );
@@ -650,13 +662,8 @@ async function * queryIncrementalPageByPageId( session, pageId, params = {}, opt
  * You will usually want to specify at least the prop parameter.
  * This may include the pageids parameter,
  * in which case the given page ID will be added if necessary.
- * @param {Object} [options] Request options.
- * @param {mergeValues} [mergeValues] Callback to merge conflicting values.
- * Called when merging versions of the page that have conflicting values for a key.
- * The default implementation (which can be imported as mergeValues)
- * will pick the earlier value when encountering different strings or numbers,
- * accepting that these may be unstable between responses,
- * and otherwise throw an error, assuming that other values should not vary.
+ * @param {Options} [options] Request options,
+ * including custom options for this package (see the type documentation).
  * @return {Object} The full data of the page with the given page ID.
  * (The data included will depend on the prop parameter –
  * “full” means that partial responses are merged,
@@ -668,8 +675,15 @@ async function queryFullPageByPageId(
 	pageId,
 	params = {},
 	options = {},
-	mergeValues = mergeValuesInternal,
 ) {
+	const {
+		'm3api-query/mergeValues': mergeValues,
+	} = {
+		...DEFAULT_OPTIONS,
+		...session.defaultOptions,
+		...options,
+	};
+
 	params = makeParamsWithPageId( params, pageId );
 	const reducer = ( page, response ) => {
 		const incr = getResponsePageByPageId( response, pageId );
@@ -796,13 +810,8 @@ async function queryFullRevisionByRevisionId(
  * Most useful with a generator, its parameters (all prefixed with g),
  * and then a prop parameter to determine the properties of each returned page.
  * Can also be used with titles/pageids/revids, though.
- * @param {Object} [options] Request options.
- * @param {mergeValues} [mergeValues] Callback to merge conflicting values.
- * Called when merging versions of the page that have conflicting values for a key.
- * The default implementation (which can be imported as mergeValues)
- * will pick the earlier value when encountering different strings or numbers,
- * accepting that these may be unstable between responses,
- * and otherwise throw an error, assuming that other values should not vary.
+ * @param {Options} [options] Request options,
+ * including custom options for this package (see the type documentation).
  * @return {Object} The full data of each returned page.
  * (The data included will depend on the prop parameter –
  * “full” means that partial responses are merged,
@@ -813,8 +822,15 @@ async function * queryFullPages(
 	session,
 	params,
 	options = {},
-	mergeValues = mergeValuesInternal,
 ) {
+	const {
+		'm3api-query/mergeValues': mergeValues,
+	} = {
+		...DEFAULT_OPTIONS,
+		...session.defaultOptions,
+		...options,
+	};
+
 	params = makeParams( params );
 	const reducer = ( batch, response ) => {
 		let pages = ( response.query || {} ).pages || [];
@@ -903,6 +919,7 @@ export {
 	getResponsePageByTitle,
 	getResponsePageByPageId,
 	getResponseRevisionByRevisionId,
+	mergeValues,
 	queryPartialPageByTitle,
 	queryIncrementalPageByTitle,
 	queryFullPageByTitle,
@@ -913,5 +930,4 @@ export {
 	queryFullRevisionByRevisionId,
 	queryFullPages,
 	queryFullRevisions,
-	mergeValuesExternal as mergeValues,
 };
