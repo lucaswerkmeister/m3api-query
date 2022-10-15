@@ -1,7 +1,7 @@
 {
 	"name": "m3api-query",
 	"version": "0.1.0",
-	"description": "Helper functions to interact with the MediaWiki “query” API using m3api.",
+	"description": "m3api extension package to interact with the MediaWiki “query” API.",
 	"main": "index.js",
 	"type": "module",
 	"scripts": {

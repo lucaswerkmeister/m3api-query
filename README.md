@@ -1,6 +1,6 @@
 # m3api-query
 
-m3api-query is a helper module for [m3api][],
+m3api-query is an extension package for [m3api][],
 simplifying some common operations when working with the `query` action.
 
 ## Usage
