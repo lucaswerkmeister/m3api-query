@@ -466,8 +466,7 @@ describe( 'queryPartialPageByTitle', () => {
 			async internalPost( urlParams, bodyParams ) {
 				expect( called, 'internalPost already called' ).to.be.false;
 				called = true;
-				expect( urlParams ).to.eql( {} );
-				expect( bodyParams ).to.eql( expectedParams );
+				expect( { ...urlParams, ...bodyParams } ).to.eql( expectedParams );
 				return successfulResponse( response );
 			}
 		}
@@ -927,8 +926,7 @@ describe( 'queryPartialPageByPageId', () => {
 			async internalPost( urlParams, bodyParams ) {
 				expect( called, 'internalPost already called' ).to.be.false;
 				called = true;
-				expect( urlParams ).to.eql( {} );
-				expect( bodyParams ).to.eql( expectedParams );
+				expect( { ...urlParams, ...bodyParams } ).to.eql( expectedParams );
 				return successfulResponse( response );
 			}
 		}
