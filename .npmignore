@@ -1,5 +1,7 @@
 # copied from .gitignore (which this overrides)
 
 # additional exclusions irrelevant for published packages
+/.eslintrc.json
 /.github/
+/RELEASE.md
 /test/
