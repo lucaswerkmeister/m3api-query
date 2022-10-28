@@ -1427,6 +1427,63 @@ describe( 'queryFullPages', () => {
 		expect( iteration ).to.equal( 2 );
 	} );
 
+	it( 'sorts pages per batch according to option', async () => {
+		const session = sequentialGetSession( [
+			{
+				expectedParams: { action: 'query', generator: 'ap', prop: 'i' },
+				response: { query: { pages: [
+					{ pageid: 3 },
+					{ pageid: 1 },
+					{ pageid: 2 },
+				] }, continue: { gapc: '3' }, batchcomplete: true },
+			},
+			{
+				expectedParams: { action: 'query', generator: 'ap', prop: 'i', gapc: '3' },
+				response: { query: { pages: [
+					{ pageid: 5 },
+					// no pageid: 4 in this response
+				] }, continue: { gapc: '3', ic: '2' } },
+			},
+			{
+				expectedParams: { action: 'query', generator: 'ap', prop: 'i', gapc: '3', ic: '2' },
+				response: { query: { pages: [
+					{ pageid: 4 },
+					// no pageid: 5 in this response (but we pretend it’s the same batch as before)
+				] }, batchcomplete: true },
+			},
+		] );
+
+		let iteration = 0;
+		for await ( const page of queryFullPages( session, {
+			generator: 'ap', // “allpages”, abbreviated for shorter (one-line) expectedParams above
+			prop: [ 'i' ], // “info”, likewise abbreviated
+		}, {
+			'm3api-query/comparePages': ( { pageid: p1 }, { pageid: p2 } ) => p1 - p2,
+		} ) ) {
+			switch ( ++iteration ) {
+				case 1:
+					expect( page ).to.eql( { pageid: 1 } );
+					break;
+				case 2:
+					expect( page ).to.eql( { pageid: 2 } );
+					break;
+				case 3:
+					expect( page ).to.eql( { pageid: 3 } );
+					break;
+				case 4:
+					expect( page ).to.eql( { pageid: 4 } );
+					break;
+				case 5:
+					expect( page ).to.eql( { pageid: 5 } );
+					break;
+				default:
+					throw new Error( `Unexpected iteration #${iteration}` );
+			}
+		}
+
+		expect( iteration ).to.equal( 5 );
+	} );
+
 } );
 
 describe( 'queryFullRevisions', () => {

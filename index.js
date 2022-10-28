@@ -453,6 +453,17 @@ function mergeObjects( base, incremental, mergeValues, basePath = '' ) {
 }
 
 /**
+ * Compare two objects for sorting.
+ *
+ * @callback compareFn
+ * @param {Object} a The first object.
+ * @param {Object} b The second object.
+ * @return {number} A number greater than zero if a is greater than b,
+ * a number less than zero if a is less than b,
+ * or zero to keep the original order of a and b.
+ */
+
+/**
  * Request options understood by this package.
  * All other options will be passed through to m3api.
  *
@@ -462,10 +473,22 @@ function mergeObjects( base, incremental, mergeValues, basePath = '' ) {
  * Callback to merge conflicting values.
  * Called when merging versions of the page that have conflicting values for a key.
  * Defaults to {@link mergeValues}.
+ * @property {compareFn|null} ['m3api-query/comparePages']
+ * Callback to compare two pages.
+ * If not null, {@link queryFullPages} sorts the pages within each batch
+ * according to this comparison function before yielding them.
+ * This is especially useful when using a generator,
+ * in which case the order of pages in the API result
+ * does not preserve the order in which the generator produced them.
+ * For example, you may use
+ * <code>( { pageid: p1 }, { pageid: p2 } ) => p1 - p2</code>
+ * to sort pages according to their page ID (yield lower page IDs first).
+ * Defaults to null (no sorting).
  */
 
 Object.assign( DEFAULT_OPTIONS, {
 	'm3api-query/mergeValues': mergeValues,
+	'm3api-query/comparePages': null,
 } );
 
 /**
@@ -825,6 +848,7 @@ async function * queryFullPages(
 ) {
 	const {
 		'm3api-query/mergeValues': mergeValues,
+		'm3api-query/comparePages': comparePages,
 	} = {
 		...DEFAULT_OPTIONS,
 		...session.defaultOptions,
@@ -857,7 +881,12 @@ async function * queryFullPages(
 		reducer,
 		initial,
 	) ) {
-		yield * batch.values();
+		if ( comparePages !== null ) {
+			const pages = [ ...batch.values() ];
+			yield * pages.sort( comparePages );
+		} else {
+			yield * batch.values();
+		}
 	}
 }
 
