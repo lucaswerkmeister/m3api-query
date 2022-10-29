@@ -1432,9 +1432,9 @@ describe( 'queryFullPages', () => {
 			{
 				expectedParams: { action: 'query', generator: 'ap', prop: 'i' },
 				response: { query: { pages: [
-					{ pageid: 3 },
-					{ pageid: 1 },
-					{ pageid: 2 },
+					{ pageid: 30 },
+					{ pageid: 10 },
+					{ pageid: 20 },
 				] }, continue: { gapc: '3' }, batchcomplete: true },
 			},
 			{
@@ -1462,13 +1462,13 @@ describe( 'queryFullPages', () => {
 		} ) ) {
 			switch ( ++iteration ) {
 				case 1:
-					expect( page ).to.eql( { pageid: 1 } );
+					expect( page ).to.eql( { pageid: 10 } );
 					break;
 				case 2:
-					expect( page ).to.eql( { pageid: 2 } );
+					expect( page ).to.eql( { pageid: 20 } );
 					break;
 				case 3:
-					expect( page ).to.eql( { pageid: 3 } );
+					expect( page ).to.eql( { pageid: 30 } );
 					break;
 				case 4:
 					expect( page ).to.eql( { pageid: 4 } );
@@ -1576,8 +1576,8 @@ describe( 'queryFullRevisions', () => {
 			{
 				expectedParams: { action: 'query', generator: 'ar', prop: 'revisions' },
 				response: { query: { pages: [
-					{ pageid: 2, revisions: [ { revid: 21 } ] },
-					{ pageid: 1, revisions: [ { revid: 12 }, { revid: 11 } ] },
+					{ pageid: 2, revisions: [ { revid: 210 } ] },
+					{ pageid: 1, revisions: [ { revid: 120 }, { revid: 110 } ] },
 				] }, continue: { gapc: '3' }, batchcomplete: true },
 			},
 			{
@@ -1597,13 +1597,13 @@ describe( 'queryFullRevisions', () => {
 		} ) ) {
 			switch ( ++iteration ) {
 				case 1:
-					expect( revision ).to.eql( { revid: 11 } );
+					expect( revision ).to.eql( { revid: 110 } );
 					break;
 				case 2:
-					expect( revision ).to.eql( { revid: 12 } );
+					expect( revision ).to.eql( { revid: 120 } );
 					break;
 				case 3:
-					expect( revision ).to.eql( { revid: 21 } );
+					expect( revision ).to.eql( { revid: 210 } );
 					break;
 				case 4:
 					expect( revision ).to.eql( { revid: 31 } );
