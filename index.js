@@ -537,7 +537,7 @@ async function queryPartialPageByTitle( session, title, params = {}, options = {
  * This may include the titles parameter,
  * in which case the given title will be added if necessary.
  * @param {Object} [options] Request options.
- * @return {Object} One or more versions of the page with the given title.
+ * @yield {Object} One or more versions of the page with the given title.
  */
 async function * queryIncrementalPageByTitle( session, title, params = {}, options = {} ) {
 	params = makeParamsWithTitle( params, title );
@@ -606,6 +606,7 @@ async function queryFullPageByTitle(
 	};
 	const initial = () => ( {} );
 
+	// eslint-disable-next-line no-unreachable-loop
 	for await ( const page of session.requestAndContinueReducingBatch(
 		params,
 		options,
@@ -655,7 +656,7 @@ async function queryPartialPageByPageId( session, pageId, params = {}, options =
  * This may include the pageids parameter,
  * in which case the given page ID will be added if necessary.
  * @param {Object} [options] Request options.
- * @return {Object} One or more versions of the page with the given page ID.
+ * @yield {Object} One or more versions of the page with the given page ID.
  */
 async function * queryIncrementalPageByPageId( session, pageId, params = {}, options = {} ) {
 	params = makeParamsWithPageId( params, pageId );
@@ -724,6 +725,7 @@ async function queryFullPageByPageId(
 	};
 	const initial = () => ( {} );
 
+	// eslint-disable-next-line no-unreachable-loop
 	for await ( const page of session.requestAndContinueReducingBatch(
 		params,
 		options,
@@ -759,7 +761,7 @@ async function queryFullPageByPageId(
  * in which case prop=revisions will be added if necessary.
  * @param {Object} [options] Request options.
  * The dropTruncatedResultWarning option defaults to true here.
- * @return {Object|null} Zero or more nulls, then the revision with the given revision ID.
+ * @yield {Object|null} Zero or more nulls, then the revision with the given revision ID.
  * The non-null revision will have the corresponding page object, without its revisions,
  * attached using {@link pageOfRevision} as the key.
  */
@@ -844,7 +846,7 @@ async function queryFullRevisionByRevisionId(
  * Can also be used with titles/pageids/revids, though.
  * @param {Options} [options] Request options,
  * including custom options for this package (see the type documentation).
- * @return {Object} The full data of each returned page.
+ * @yield {Object} The full data of each returned page.
  * (The data included will depend on the prop parameter –
  * “full” means that partial responses are merged,
  * not that the object includes all the information about the page
@@ -912,7 +914,7 @@ async function * queryFullPages(
  * to determine the properties of each returned revision.
  * @param {Object} [options] Request options.
  * The dropTruncatedResultWarning option defaults to true here.
- * @return {Object} The full data of each returned revision.
+ * @yield {Object} The full data of each returned revision.
  * (The data included will depend on the rvprop parameter –
  * the “full” name is by analogy with {@link queryFullPages},
  * the object does not necessarily include all the information about the revisions

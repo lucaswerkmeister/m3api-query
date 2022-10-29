@@ -10,8 +10,17 @@
 	],
 	"rules": {
 		"comma-dangle": [ "error", "always-multiline" ],
+		"no-shadow": "off",
 		"jsdoc/no-undefined-types": [ "error", {
 			"definedTypes": [ "Session" ]
 		} ]
-	}
+	},
+	"overrides": [
+		{
+			"files": "*.json",
+			"rules": {
+				"comma-dangle": "off"
+			}
+		}
+	]
 }
