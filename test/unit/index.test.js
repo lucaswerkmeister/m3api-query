@@ -1571,4 +1571,52 @@ describe( 'queryFullRevisions', () => {
 		expect( iteration ).to.equal( 2 );
 	} );
 
+	it( 'sorts pages per batch according to option', async () => {
+		const session = sequentialGetSession( [
+			{
+				expectedParams: { action: 'query', generator: 'ar', prop: 'revisions' },
+				response: { query: { pages: [
+					{ pageid: 2, revisions: [ { revid: 21 } ] },
+					{ pageid: 1, revisions: [ { revid: 12 }, { revid: 11 } ] },
+				] }, continue: { gapc: '3' }, batchcomplete: true },
+			},
+			{
+				expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', gapc: '3' },
+				response: { query: { pages: [
+					{ pageid: 4, revisions: [ { revid: 41 } ] },
+					{ pageid: 3, revisions: [ { revid: 31 } ] },
+				] }, batchcomplete: true },
+			},
+		] );
+
+		let iteration = 0;
+		for await ( const revision of queryFullRevisions( session, {
+			generator: 'ar', // “allrevisions”, abbreviated for shorter (one-line) expectedParams above
+		}, {
+			'm3api-query/compareRevisions': ( { revid: r1 }, { revid: r2 } ) => r1 - r2,
+		} ) ) {
+			switch ( ++iteration ) {
+				case 1:
+					expect( revision ).to.eql( { revid: 11 } );
+					break;
+				case 2:
+					expect( revision ).to.eql( { revid: 12 } );
+					break;
+				case 3:
+					expect( revision ).to.eql( { revid: 21 } );
+					break;
+				case 4:
+					expect( revision ).to.eql( { revid: 31 } );
+					break;
+				case 5:
+					expect( revision ).to.eql( { revid: 41 } );
+					break;
+				default:
+					throw new Error( `Unexpected iteration #${iteration}` );
+			}
+		}
+
+		expect( iteration ).to.equal( 5 );
+	} );
+
 } );

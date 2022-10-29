@@ -484,11 +484,20 @@ function mergeObjects( base, incremental, mergeValues, basePath = '' ) {
  * <code>( { pageid: p1 }, { pageid: p2 } ) => p1 - p2</code>
  * to sort pages according to their page ID (yield lower page IDs first).
  * Defaults to null (no sorting).
+ * @property {compareFn|null} ['m3api-query/compareRevisions']
+ * Callback to compare two revisions.
+ * If not null, {@link queryFullRevisions} sorts the revisions within each batch
+ * according to this comparison function before yielding them.
+ * For example, you may use
+ * <code>( { revid: r1 }, { revid: r2 } ) => r1 - r2</code>
+ * to sort revisions according to their revision ID (yield lower revision IDs first).
+ * Defaults to null (no sorting).
  */
 
 Object.assign( DEFAULT_OPTIONS, {
 	'm3api-query/mergeValues': mergeValues,
 	'm3api-query/comparePages': null,
+	'm3api-query/compareRevisions': null,
 } );
 
 /**
@@ -917,6 +926,14 @@ async function * queryFullRevisions(
 	params,
 	options = {},
 ) {
+	const {
+		'm3api-query/compareRevisions': compareRevisions,
+	} = {
+		...DEFAULT_OPTIONS,
+		...session.defaultOptions,
+		...options,
+	};
+
 	params = makeParamsWithString( 'prop', params, 'revisions' );
 	options = {
 		dropTruncatedResultWarning: true,
@@ -925,9 +942,10 @@ async function * queryFullRevisions(
 
 	for await ( const response of session.requestAndContinue( params, options ) ) {
 		const query = response.query || {};
+		const batch = [];
 
 		for ( const revision of Object.values( query.badrevids || {} ) ) {
-			yield missingRevision( revision, response, query );
+			batch.push( missingRevision( revision, response, query ) );
 		}
 
 		let pages = query.pages || [];
@@ -937,8 +955,14 @@ async function * queryFullRevisions(
 		for ( const page of pages ) {
 			const { revisions, ...remainingPage } = page;
 			for ( const revision of revisions || [] ) {
-				yield revisionWithPage( revision, remainingPage );
+				batch.push( revisionWithPage( revision, remainingPage ) );
 			}
+		}
+
+		if ( compareRevisions !== null ) {
+			yield * batch.sort( compareRevisions );
+		} else {
+			yield * batch;
 		}
 	}
 }
