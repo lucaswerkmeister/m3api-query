@@ -9,9 +9,9 @@ but this file may sometimes contain later improvements (e.g. typo fixes).
 
 Initial release, including:
 
-- `getResponsePageByTitle(),
+- `getResponsePageByTitle()`,
   `getResponsePageByPageId()` and
-  `getResponseRevisionByRevisionId() functions,
+  `getResponseRevisionByRevisionId()` functions,
   for extracting data from an existing response.
 - `queryPartialPageByTitle()`,
   `queryIncrementalPageByTitle()` and
