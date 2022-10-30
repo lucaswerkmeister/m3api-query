@@ -17,6 +17,16 @@ Get the full data for a single page with the given title,
 according to the `prop`s (and possibly other parameters).
 
 ```js
+import Session, { set } from 'm3api/node.js';
+import { queryFullPageByTitle } from 'm3api-query/index.js';
+
+const session = new Session( 'en.wikipedia.org', {
+	formatversion: 2,
+}, {
+	userAgent: 'm3api-query-README-example',
+} );
+const title = 'List of common misconceptions';
+
 const page = await queryFullPageByTitle( session, title, {
 	prop: set(
 		'categories',
