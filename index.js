@@ -4,9 +4,11 @@ import {
 } from 'm3api/core.js';
 
 /**
- * @type {symbol} A symbol that is used to attach the surrounding page to a revision object,
+ * A symbol that is used to attach the surrounding page to a revision object,
  * as returned by {@link getResponseRevisionByRevisionId},
  * {@link queryPotentialRevisionByRevisionId}, and {@queryFullRevisionByRevisionId}.
+ *
+ * @type {symbol}
  */
 const pageOfRevision = Symbol( 'pageOfRevision' );
 
