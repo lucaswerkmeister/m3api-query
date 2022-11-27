@@ -62,6 +62,20 @@ describe( 'getResponsePageByTitle', () => {
 		expect( getResponsePageByTitle( response, inputTitle ) ).to.equal( page );
 	} );
 
+	it( 'finds page with converted title', () => {
+		const title = 'Itletay';
+		const page = { title };
+		const inputTitle = 'Title';
+		const response = { query: {
+			converted: [
+				{ from: 'Unrelated', to: 'Unrelatedway' },
+				{ from: inputTitle, to: title },
+			],
+			pages: [ page ],
+		} };
+		expect( getResponsePageByTitle( response, inputTitle ) ).to.equal( page );
+	} );
+
 	it( 'finds page with redirected title', () => {
 		const title = 'Target';
 		const page = { title };
@@ -133,17 +147,21 @@ describe( 'getResponsePageByTitle', () => {
 		expect( getResponsePageByTitle( response, inputTitle ) ).to.be.null;
 	} );
 
-	it( 'finds page with normalized redirected title', () => {
-		const title = 'Target';
+	it( 'finds page with normalized converted redirected title', () => {
+		const title = 'Argettay';
 		const page = { title };
+		const convertedTitle = 'Edirectray';
 		const normalizedTitle = 'Redirect';
 		const inputTitle = 'redirect';
 		const response = { query: {
 			normalized: [
 				{ from: inputTitle, to: normalizedTitle },
 			],
+			converted: [
+				{ from: normalizedTitle, to: convertedTitle },
+			],
 			redirects: [
-				{ from: normalizedTitle, to: title },
+				{ from: convertedTitle, to: title },
 			],
 			pages: [ page ],
 		} };

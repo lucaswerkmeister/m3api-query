@@ -90,6 +90,13 @@ function getResponsePageByTitle( response, title ) {
 		}
 	}
 
+	for ( const converted of query.converted || [] ) {
+		if ( title === converted.from ) {
+			title = converted.to;
+			break;
+		}
+	}
+
 	const visitedRedirects = new Set();
 	redirectLoop: do {
 		for ( const redirect of query.redirects || [] ) {

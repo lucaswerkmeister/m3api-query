@@ -7,7 +7,8 @@
 	"scripts": {
 		"test": "npm-run-all test:*",
 		"test:lint": "eslint .",
-		"test:unit": "mocha test/unit/"
+		"test:unit": "mocha test/unit/",
+		"test:integration": "mocha test/integration/"
 	},
 	"homepage": "https://github.com/lucaswerkmeister/m3api-query#readme",
 	"bugs": "https://github.com/lucaswerkmeister/m3api-query/issues",
