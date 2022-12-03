@@ -12,6 +12,8 @@ but this file may sometimes contain later improvements (e.g. typo fixes).
   which is important on wikis with language converter support.
   (Note that the API only converts titles
   if the `converttitles` parameter is specified.)
+- Publish documentation on GitHub pages:
+  [latest version][m3api-query-doc-latest], [v0.1.1][m3api-query-doc-v0.1.1].
 
 ## v0.1.0 (2022-10-30)
 
@@ -39,3 +41,6 @@ Initial release, including:
 - `m3api-query/mergeValues`,
   `m3api-query/comparePages` and
   `m3api-query/compareRevisions` options.
+
+[m3api-query-doc-latest]: https://lucaswerkmeister.github.io/m3api-query/
+[m3api-query-doc-v0.1.1]: https://lucaswerkmeister.github.io/m3api-query/v0.1.1/
