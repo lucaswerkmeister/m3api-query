@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>m3api: Home</title>
+
+    <script defer src="scripts/prettify/prettify.js"></script>
+    <script defer src="scripts/prettify/lang-css.js"></script>
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+    <link type="text/css" rel="stylesheet" href="version-warning.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <!-- VERSION-WARNING -->
+
+    <h1 class="page-title">Home</h1>
+
+    
+
+
+
+    
+
+
+    <h3> </h3>
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
+
+    <section>
+        <article><h1>m3api-query</h1>
+<p><a href="https://www.npmjs.com/package/m3api-query"><img src="https://img.shields.io/npm/v/m3api-query.svg" alt="npm"></a>
+<a href="https://lucaswerkmeister.github.io/m3api-query/"><img src="https://img.shields.io/badge/documentation-informational" alt="documentation"></a></p>
+<p>m3api-query is an extension package for <a href="https://www.npmjs.com/package/m3api">m3api</a>,
+simplifying some common operations when working with the <code>query</code> action.</p>
+<h2>Usage</h2>
+<p>The module exports several functions,
+which typically take a <code>session</code> parameter that would be constructed separately –
+see the m3api README for details on that.
+The more important functions are documented below;
+some others can be found in the source code.</p>
+<h3>queryFullPageByTitle</h3>
+<p>Get the full data for a single page with the given title,
+according to the <code>prop</code>s (and possibly other parameters).</p>
+<pre class="prettyprint source lang-js"><code>import Session, { set } from 'm3api/node.js';
+import { queryFullPageByTitle } from 'm3api-query/index.js';
+
+const session = new Session( 'en.wikipedia.org', {
+	formatversion: 2,
+}, {
+	userAgent: 'm3api-query-README-example',
+} );
+const title = 'List of common misconceptions';
+
+const page = await queryFullPageByTitle( session, title, {
+	prop: set(
+		'categories',
+		'contributors',
+		'coordinates',
+		'description',
+		'pageimages',
+		'pageprops',
+	),
+	clprop: set( 'sortkey' ),
+	cllimit: 'max',
+	colimit: 'max',
+	pclimit: 'max',
+	pilimit: 'max',
+} );
+console.log( `${page.title} (${page.description}) ` +
+	`is in ${page.categories.length} categories.` );
+for ( const contributor of page.contributors ) {
+	console.log( `Thank you, ${contributor.name}, ` +
+		`for contributing to ${page.title}!` );
+}
+// ...
+</code></pre>
+<p>If the API doesn’t return the full page information in a single response,
+the function automatically follows continuation
+and merges the responses back into a single object.</p>
+<p>There is also a <code>queryFullPageByPageId</code> function that does what you’d expect,
+and a similar <code>queryFullRevisionByRevisionId</code> function as well.</p>
+<h3>queryFullPages</h3>
+<p>Get the full data for a collection of pages,
+typically produced by a generator.</p>
+<pre class="prettyprint source lang-js"><code>let n = 0;
+for await ( const page of queryFullPages( session, {
+	generator: 'allpages',
+	gapnamespace: 10, // NS_TEMPLATE
+	gaplimit: 100,
+	prop: set( 'revisions' ),
+	rvprop: set( 'content' ),
+	rvslots: set( 'main' ),
+	formatversion: 2,
+} ) ) {
+	const content = page.revisions[ 0 ].slots.main.content;
+	if ( content.includes( 'style=' ) ) {
+		console.log( `${page.title} seems to contain inline styles` );
+		if ( ++n >= 10 ) {
+			break;
+		}
+	}
+}
+</code></pre>
+<p>In this example, we ask the <code>allpages</code> generator for 100 pages at a time,
+but the <code>revisions</code> prop will actually only return 50 revisions per request,
+so we need to follow continuation once for the revisions of the second half of pages,
+before continuing with the next batch of 100 pages.
+The function handles all of this for you.</p>
+<p>It’s worth noting that the function only starts yielding pages at the end of a complete batch,
+i.e. in this example only after the first 100 pages all have their revisions.
+If we used <code>gaplimit: 'max'</code>, the generator would produce 500 pages at once,
+and the function would make 10 requests internally before yielding any pages;
+since this example quickly breaks from the loop anyways,
+a shorter <code>gaplimit</code> makes more sense here.</p>
+<p>Also, when you use a generator,
+the order of pages in the actual API result will usually be unrelated
+to the order in which the generator produced them.
+You can restore the meaningful order using the <code>m3api-query/comparePages</code> option;
+for example, the <code>search</code> generator adds an <code>index</code> property to each page,
+so by comparing by this property we can get the pages in the search order again:</p>
+<pre class="prettyprint source lang-js"><code>let n = 0;
+for await ( const page of queryFullPages( session, {
+	generator: 'search',
+	gsrsearch: 'example',
+	gsrlimit: 'max',
+}, {
+	'm3api-query/comparePages': ( { index: i1 }, { index: i2 } ) => i1 - i2,
+} ) ) {
+	console.log( page.title );
+	if ( ++n >= 1000 ) {
+		break;
+	}
+}
+</code></pre>
+<h3>queryFullRevisions</h3>
+<p>Similar to <code>queryFullPages</code>, this provides a stream of revision objects.
+It can be used to get all the revisions of a page, following continuation as needed:</p>
+<pre class="prettyprint source lang-js"><code>for await ( const revision of queryFullRevisions( session, {
+	titles: 'MediaWiki',
+	rvprop: set( 'timestamp', 'user', 'comment' ),
+	rvlimit: 'max',
+} ) ) {
+	const { timestamp, user, comment } = revision;
+	console.log( `${timestamp} ([[User:${user}]]): ${comment}` );
+}
+</code></pre>
+<p>Or to get the current revision of a set of pages produced by a generator:</p>
+<pre class="prettyprint source lang-js"><code>for await ( const revision of queryFullRevisions( session, {
+	generator: 'categorymembers',
+	gcmtitle: 'Category:Member states of the United Nations',
+	gcmtype: [ 'page' ],
+	gcmlimit: 'max',
+	rvprop: set( 'size' ),
+} ) ) {
+	const page = revision[ pageOfRevision ];
+	console.log( `${page.title}: ${revision.size} bytes` );
+}
+</code></pre>
+<p>The above example also demonstrates how to get the page that a revision belongs to –
+the <code>pageOfRevision</code> key can be imported from this module just like the other functions.
+(This also applies to other functions returning revisions, such as <code>queryFullRevisionByRevisionId</code>.)</p>
+<p>You can sort the revisions within each batch using the <code>m3api-query/compareRevisions</code> option;
+the comparison may also involve the page the revision belongs to,
+e.g. for the <code>search</code> generator as seen before (under <code>queryFullPages</code>):</p>
+<pre class="prettyprint source lang-js"><code>for await ( const revision of queryFullRevisions( session, {
+	generator: 'search',
+	gsrsearch: 'example',
+	gsrlimit: 'max',
+	rvprop: set( 'timestamp' ),
+}, {
+	'm3api-query/compareRevisions': ( revision1, revision2 ) => {
+		const { index: i1 } = revision1[ pageOfRevision ],
+			{ index: i2 } = revision2[ pageOfRevision ];
+		return i1 - i2;
+	},
+} ) ) {
+	const { timestamp } = revision,
+		{ title } = revision[ pageOfRevision ];
+	console.log( `${title} (last edited ${timestamp})` );
+}
+</code></pre>
+<h2>License</h2>
+<p>Published under the <a href="https://spdx.org/licenses/ISC.html">ISC License</a>.
+By contributing to this software,
+you agree to publish your contribution under the same license.</p></article>
+    </section>
+
+
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#getResponsePageByPageId">getResponsePageByPageId</a></li><li><a href="global.html#getResponsePageByTitle">getResponsePageByTitle</a></li><li><a href="global.html#getResponseRevisionByRevisionId">getResponseRevisionByRevisionId</a></li><li><a href="global.html#missingRevision">missingRevision</a></li><li><a href="global.html#pageOfRevision">pageOfRevision</a></li><li><a href="global.html#queryFullPageByPageId">queryFullPageByPageId</a></li><li><a href="global.html#queryFullPageByTitle">queryFullPageByTitle</a></li><li><a href="global.html#queryFullPages">queryFullPages</a></li><li><a href="global.html#queryFullRevisionByRevisionId">queryFullRevisionByRevisionId</a></li><li><a href="global.html#queryFullRevisions">queryFullRevisions</a></li><li><a href="global.html#queryIncrementalPageByPageId">queryIncrementalPageByPageId</a></li><li><a href="global.html#queryIncrementalPageByTitle">queryIncrementalPageByTitle</a></li><li><a href="global.html#queryPartialPageByPageId">queryPartialPageByPageId</a></li><li><a href="global.html#queryPartialPageByTitle">queryPartialPageByTitle</a></li><li><a href="global.html#queryPotentialRevisionByRevisionId">queryPotentialRevisionByRevisionId</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.0</a>
+</footer>
+
+<script>document.addEventListener('DOMContentLoaded', function () { prettyPrint(); });</script>
+<script async src="scripts/linenumber.js"></script>
+</body>
+</html>
