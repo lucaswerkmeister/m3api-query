@@ -1,4 +1,6 @@
 # m3api-query
+[![npm](https://img.shields.io/npm/v/m3api-query.svg)](https://www.npmjs.com/package/m3api-query)
+[![documentation](https://img.shields.io/badge/documentation-informational)](https://lucaswerkmeister.github.io/m3api-query/)
 
 m3api-query is an extension package for [m3api][],
 simplifying some common operations when working with the `query` action.
