@@ -16,6 +16,7 @@ const pageOfRevision = Symbol( 'pageOfRevision' );
 /**
  * Attach the given page to the given revision.
  *
+ * @private
  * @param {Object} revision Not modified
  * @param {Object} page
  * @return {Object} The revision, with the page attached using {@link pageOfRevision}.
