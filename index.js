@@ -231,6 +231,7 @@ function setFrom( iterable, mapFn, thisArg ) {
 }
 
 /**
+ * @private
  * @param {Object} params
  * @param {string} paramName
  */
