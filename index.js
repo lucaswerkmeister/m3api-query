@@ -6,7 +6,8 @@ import {
 /**
  * A symbol that is used to attach the surrounding page to a revision object,
  * as returned by {@link getResponseRevisionByRevisionId},
- * {@link queryPotentialRevisionByRevisionId}, and {@queryFullRevisionByRevisionId}.
+ * {@link queryPotentialRevisionByRevisionId},
+ * and {@link queryFullRevisionByRevisionId}.
  *
  * @type {symbol}
  */
