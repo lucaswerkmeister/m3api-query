@@ -528,7 +528,7 @@ Object.assign( DEFAULT_OPTIONS, {
  * You will usually want to specify at least the prop parameter.
  * This may include the titles parameter,
  * in which case the given title will be added if necessary.
- * @param {Object} [options] Request options.
+ * @param {Options} [options] Request options.
  * @return {Object} The page with the given title.
  */
 async function queryPartialPageByTitle( session, title, params = {}, options = {} ) {
@@ -551,7 +551,7 @@ async function queryPartialPageByTitle( session, title, params = {}, options = {
  * You will usually want to specify at least the prop parameter.
  * This may include the titles parameter,
  * in which case the given title will be added if necessary.
- * @param {Object} [options] Request options.
+ * @param {Options} [options] Request options.
  * @yield {Object} One or more versions of the page with the given title.
  */
 async function * queryIncrementalPageByTitle( session, title, params = {}, options = {} ) {
@@ -647,7 +647,7 @@ async function queryFullPageByTitle(
  * You will usually want to specify at least the prop parameter.
  * This may include the pageids parameter,
  * in which case the given page ID will be added if necessary.
- * @param {Object} [options] Request options.
+ * @param {Options} [options] Request options.
  * @return {Object} The page with the given page ID.
  */
 async function queryPartialPageByPageId( session, pageId, params = {}, options = {} ) {
@@ -670,7 +670,7 @@ async function queryPartialPageByPageId( session, pageId, params = {}, options =
  * You will usually want to specify at least the prop parameter.
  * This may include the pageids parameter,
  * in which case the given page ID will be added if necessary.
- * @param {Object} [options] Request options.
+ * @param {Options} [options] Request options.
  * @yield {Object} One or more versions of the page with the given page ID.
  */
 async function * queryIncrementalPageByPageId( session, pageId, params = {}, options = {} ) {
@@ -774,7 +774,7 @@ async function queryFullPageByPageId(
  * in which case the given revision ID will be added if necessary.
  * Likewise, this may include the prop parameter,
  * in which case prop=revisions will be added if necessary.
- * @param {Object} [options] Request options.
+ * @param {Options} [options] Request options.
  * The dropTruncatedResultWarning option defaults to true here.
  * @yield {Object|null} Zero or more nulls, then the revision with the given revision ID.
  * The non-null revision will have the corresponding page object, without its revisions,
@@ -814,7 +814,7 @@ async function * queryPotentialRevisionByRevisionId(
  * in which case the given revision ID will be added if necessary.
  * Likewise, this may include the prop parameter,
  * in which case prop=revisions will be added if necessary.
- * @param {Object} [options] Request options.
+ * @param {Options} [options] Request options.
  * The dropTruncatedResultWarning option defaults to true here.
  * @return {Object} The data of the revision with the given revision ID.
  * (The data included will depend on the rvprop parameter – the “full” name
@@ -927,7 +927,7 @@ async function * queryFullPages(
  * @param {Object} params Request parameters.
  * You will usually want to specify rvprop,
  * to determine the properties of each returned revision.
- * @param {Object} [options] Request options.
+ * @param {Options} [options] Request options.
  * The dropTruncatedResultWarning option defaults to true here.
  * @yield {Object} The full data of each returned revision.
  * (The data included will depend on the rvprop parameter –
