@@ -56,12 +56,16 @@ function missingRevision( revision, response, query ) {
 /**
  * Get the page with the given title out of an API response.
  *
- * Accounts for normalized titles and redirects in the response,
+ * This function accounts for normalized or converted titles and redirects in the response,
  * which means that the title of the returned page may not be the same as the given title.
  * Note that the API does not resolve redirects by default,
  * so that part will only apply if the request was made with the redirects parameter,
  * otherwise the returned page will be the information about the redirect instead of its target.
- * (Normalization is always applied, though.)
+ * Similarly, the API does not convert titles by default,
+ * so if the request was not made with the converttitles paramater,
+ * the returned page may be indicated as missing
+ * even though it could be converted to the title of an existing page.
+ * Normalization, on the other hand, is always applied.
  *
  * This only looks for pages inside the query.pages of the response.
  * The pages can have been specified using the titles, pageids, revids, or generator parameters,

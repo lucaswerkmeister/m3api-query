@@ -10,6 +10,8 @@ but this file may sometimes contain later improvements (e.g. typo fixes).
 - `getResponsePageByTitle()` and the other `*ByTitle()` functions
   now take converted titles into account as well,
   which is important on wikis with language converter support.
+  (Note that the API only converts titles
+  if the `converttitles` parameter is specified.)
 
 ## v0.1.0 (2022-10-30)
 
