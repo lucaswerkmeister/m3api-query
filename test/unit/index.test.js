@@ -384,7 +384,7 @@ function singleGetSession( expectedParams, response ) {
 	expectedParams.format = 'json';
 	let called = false;
 	class TestSession extends BaseTestSession {
-		async internalGet( params ) {
+		async internalGet( apiUrl, params ) {
 			expect( called, 'internalGet already called' ).to.be.false;
 			called = true;
 			expect( params ).to.eql( expectedParams );
@@ -397,7 +397,7 @@ function singleGetSession( expectedParams, response ) {
 function sequentialGetSession( expectedCalls ) {
 	expectedCalls.reverse();
 	class TestSession extends BaseTestSession {
-		async internalGet( params ) {
+		async internalGet( apiUrl, params ) {
 			expect( expectedCalls ).to.not.be.empty;
 			const [ { expectedParams, response } ] = expectedCalls.splice( -1 );
 			expectedParams.format = 'json';
@@ -481,7 +481,7 @@ describe( 'queryPartialPageByTitle', () => {
 		const expectedParams = { action: 'query', titles: title, format: 'json' };
 		let called = false;
 		class TestSession extends BaseTestSession {
-			async internalPost( urlParams, bodyParams ) {
+			async internalPost( apiUrl, urlParams, bodyParams ) {
 				expect( called, 'internalPost already called' ).to.be.false;
 				called = true;
 				expect( { ...urlParams, ...bodyParams } ).to.eql( expectedParams );
@@ -509,7 +509,7 @@ describe( 'queryIncrementalPageByTitle', () => {
 		const responseB = { query: { pages: [ page1B, page2B ] }, batchcomplete: true };
 		let call = 0;
 		class TestSession extends BaseTestSession {
-			async internalGet( params ) {
+			async internalGet( apiUrl, params ) {
 				switch ( ++call ) {
 					case 1:
 						expect( params ).to.eql( {
@@ -941,7 +941,7 @@ describe( 'queryPartialPageByPageId', () => {
 		const expectedParams = { action: 'query', pageids: pageid, format: 'json' };
 		let called = false;
 		class TestSession extends BaseTestSession {
-			async internalPost( urlParams, bodyParams ) {
+			async internalPost( apiUrl, urlParams, bodyParams ) {
 				expect( called, 'internalPost already called' ).to.be.false;
 				called = true;
 				expect( { ...urlParams, ...bodyParams } ).to.eql( expectedParams );
@@ -967,7 +967,7 @@ describe( 'queryIncrementalPageByPageId', () => {
 		const responseB = { query: { pages: [ page1B, page2B ] }, batchcomplete: true };
 		let call = 0;
 		class TestSession extends BaseTestSession {
-			async internalGet( params ) {
+			async internalGet( apiUrl, params ) {
 				switch ( ++call ) {
 					case 1:
 						expect( params ).to.eql( {
@@ -1153,7 +1153,7 @@ describe( 'queryPotentialRevisionByRevisionId', () => {
 		};
 		let call = 0;
 		class TestSession extends BaseTestSession {
-			async internalGet( params ) {
+			async internalGet( apiUrl, params ) {
 				switch ( ++call ) {
 					case 1:
 						expect( params ).to.eql( {
@@ -1263,7 +1263,7 @@ describe( 'queryFullRevisionByRevisionId', () => {
 		};
 		let call = 0;
 		class TestSession extends BaseTestSession {
-			async internalGet( params ) {
+			async internalGet( apiUrl, params ) {
 				switch ( ++call ) {
 					case 1:
 						expect( params ).to.eql( {
