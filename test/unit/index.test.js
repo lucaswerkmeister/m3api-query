@@ -1,7 +1,6 @@
 /* eslint-env mocha */
 
 import { Session, set } from 'm3api/core.js';
-import 'm3api/add-performance-global.js';
 import {
 	pageOfRevision,
 	getResponsePageByTitle,

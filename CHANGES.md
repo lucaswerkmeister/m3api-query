@@ -7,6 +7,9 @@ but this file may sometimes contain later improvements (e.g. typo fixes).
 
 ## next (not yet released)
 
+- BREAKING CHANGE:
+  m3api-query now requires at least Node.js version 16,
+  up from Node 12.22.0 or Node 14.17.0 previously.
 - Updated dependencies.
 
 ## v0.1.1 (2022-12-03)
