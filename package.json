@@ -15,7 +15,7 @@
 	"bugs": "https://github.com/lucaswerkmeister/m3api-query/issues",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/lucaswerkmeister/m3api-query.git"
+		"url": "git+https://github.com/lucaswerkmeister/m3api-query.git"
 	},
 	"keywords": [
 		"mediawiki"
