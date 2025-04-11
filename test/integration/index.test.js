@@ -4,9 +4,9 @@ import Session, { set } from 'm3api/node.js';
 import {
 	queryFullPageByTitle,
 } from '../../index.js';
-import chai, { expect } from 'chai';
+import { expect, use } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
-chai.use( chaiAsPromised );
+use( chaiAsPromised );
 
 const userAgent = 'm3api-query-integration-tests (https://github.com/lucaswerkmeister/m3api-query/)';
 
