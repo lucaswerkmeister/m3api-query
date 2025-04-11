@@ -224,7 +224,7 @@ describe( 'getResponsePageByPageId', () => {
 
 	for ( const paramType of [ String, Number ] ) {
 		for ( const responseType of [ String, Number ] ) {
-			it( `finds page with ${responseType.name} ID using ${paramType.name} ID`, () => {
+			it( `finds page with ${ responseType.name } ID using ${ paramType.name } ID`, () => {
 				const pageid = 123;
 				const page = { pageid: responseType( pageid ) };
 				const response = { query: { pages: [ page ] } };
@@ -280,7 +280,7 @@ describe( 'getResponseRevisionByRevisionId', () => {
 
 	for ( const paramType of [ String, Number ] ) {
 		for ( const responseType of [ String, Number ] ) {
-			it( `finds revision with ${responseType.name} ID using ${paramType.name} ID`, () => {
+			it( `finds revision with ${ responseType.name } ID using ${ paramType.name } ID`, () => {
 				const revid = 123;
 				const revision = { revid: responseType( revid ) };
 				const page = { revisions: [ revision ] };
@@ -307,7 +307,7 @@ describe( 'getResponseRevisionByRevisionId', () => {
 			[ 'formatversion=2 + pages', { query: { pages: [] } }, { revid, missing: true } ],
 			[ 'formatversion=2 + batchcomplete', { batchcomplete: true }, { revid, missing: true } ],
 		] ) {
-			it( `adds "missing" to ${responseDescription} response`, () => {
+			it( `adds "missing" to ${ responseDescription } response`, () => {
 				const revision = { revid };
 				response.query = response.query || {};
 				response.query.badrevids = { [ revid ]: revision };
@@ -447,7 +447,7 @@ describe( 'queryPartialPageByTitle', () => {
 		[ 'string', ( title ) => ( { titles: title } ) ],
 	] ) {
 
-		it( `handles existing same title ${type} in params`, async () => {
+		it( `handles existing same title ${ type } in params`, async () => {
 			const title = 'Title';
 			const page = { title };
 			const response = { query: { pages: [ page ] } };
@@ -458,13 +458,13 @@ describe( 'queryPartialPageByTitle', () => {
 			expect( inputParams, 'params modified' ).to.eql( params( title ) );
 		} );
 
-		it( `adds to existing other title ${type} in params`, async () => {
+		it( `adds to existing other title ${ type } in params`, async () => {
 			const title = 'Title';
 			const page = { title };
 			const otherTitle = 'Other title';
 			const otherPage = { title: otherTitle };
 			const response = { query: { pages: [ page, otherPage ] } };
-			const expectedParams = { action: 'query', titles: `${otherTitle}|${title}` };
+			const expectedParams = { action: 'query', titles: `${ otherTitle }|${ title }` };
 			const session = singleGetSession( expectedParams, response );
 			const inputParams = params( otherTitle );
 			expect( await queryPartialPageByTitle( session, title, inputParams ) ).to.equal( page );
@@ -513,20 +513,20 @@ describe( 'queryIncrementalPageByTitle', () => {
 					case 1:
 						expect( params ).to.eql( {
 							action: 'query',
-							titles: `${title1}|${title2}`,
+							titles: `${ title1 }|${ title2 }`,
 							format: 'json',
 						} );
 						return successfulResponse( responseA );
 					case 2:
 						expect( params ).to.eql( {
 							action: 'query',
-							titles: `${title1}|${title2}`,
+							titles: `${ title1 }|${ title2 }`,
 							continue: title2,
 							format: 'json',
 						} );
 						return successfulResponse( responseB );
 					default:
-						throw new Error( `Unexpected call #${call}` );
+						throw new Error( `Unexpected call #${ call }` );
 				}
 			}
 		}
@@ -546,7 +546,7 @@ describe( 'queryIncrementalPageByTitle', () => {
 					expect( response ).to.equal( page2B );
 					break;
 				default:
-					throw new Error( `Unexpected iteration #${iteration}` );
+					throw new Error( `Unexpected iteration #${ iteration }` );
 			}
 		}
 
@@ -743,7 +743,7 @@ describe( 'queryFullPageByTitle', () => {
 			expect( path ).to.equal( 'a.b' );
 			expect( base ).to.eql( { b: 1 } );
 			expect( key ).to.equal( 'b' );
-			base[ `-test-${key}` ] = [ baseValue, incrementalValue ];
+			base[ `-test-${ key }` ] = [ baseValue, incrementalValue ];
 			return baseValue + incrementalValue;
 		}
 
@@ -856,7 +856,7 @@ describe( 'queryPartialPageByPageId', () => {
 			[ String, String ],
 		] ) {
 
-			it( `does not duplicate existing page ID ${existingType.name} ${container} given ${extraType.name}`, async () => {
+			it( `does not duplicate existing page ID ${ existingType.name } ${ container } given ${ extraType.name }`, async () => {
 				const pageid = '123';
 				const page = { pageid };
 				const response = { query: { pages: [ page ] } };
@@ -870,13 +870,13 @@ describe( 'queryPartialPageByPageId', () => {
 					.to.eql( params( existingType( pageid ) ) );
 			} );
 
-			it( `adds to existing other page ID ${existingType.name} ${container} given ${extraType.name}`, async () => {
+			it( `adds to existing other page ID ${ existingType.name } ${ container } given ${ extraType.name }`, async () => {
 				const pageid = '123';
 				const page = { pageid };
 				const otherPageId = '456';
 				const otherPage = { pageid: otherPageId };
 				const response = { query: { pages: [ page, otherPage ] } };
-				const expectedParams = { action: 'query', pageids: `${otherPageId}|${pageid}` };
+				const expectedParams = { action: 'query', pageids: `${ otherPageId }|${ pageid }` };
 				const session = singleGetSession( expectedParams, response );
 				const inputPageId = extraType( pageid );
 				const inputParams = params( existingType( otherPageId ) );
@@ -896,7 +896,7 @@ describe( 'queryPartialPageByPageId', () => {
 			[ 123456789123456780, '123456789123456780' ],
 		] ) {
 
-			it( `does not duplicate existing page ID ${existing} ${typeof existing} ${container} given ${extra} ${typeof extra}`, async () => {
+			it( `does not duplicate existing page ID ${ existing } ${ typeof existing } ${ container } given ${ extra } ${ typeof extra }`, async () => {
 				const page = { pageid: existing };
 				const response = { query: { pages: [ page ] } };
 				const expectedParams = { action: 'query', pageids: String( existing ) };
@@ -916,11 +916,11 @@ describe( 'queryPartialPageByPageId', () => {
 			[ 123456789123456780, '123456789123456789' ],
 		] ) {
 
-			it( `adds to existing other page ID ${existing} ${typeof existing} ${container} given ${extra} ${typeof extra}`, async () => {
+			it( `adds to existing other page ID ${ existing } ${ typeof existing } ${ container } given ${ extra } ${ typeof extra }`, async () => {
 				const page = { pageid: String( extra ) };
 				const otherPage = { pageid: String( existing ) };
 				const response = { query: { pages: [ page, otherPage ] } };
-				const expectedParams = { action: 'query', pageids: `${existing}|${extra}` };
+				const expectedParams = { action: 'query', pageids: `${ existing }|${ extra }` };
 				const session = singleGetSession( expectedParams, response );
 				const inputParams = params( existing );
 				expect( await queryPartialPageByPageId( session, extra, inputParams ) )
@@ -971,20 +971,20 @@ describe( 'queryIncrementalPageByPageId', () => {
 					case 1:
 						expect( params ).to.eql( {
 							action: 'query',
-							pageids: `${pageId1}|${pageId2}`,
+							pageids: `${ pageId1 }|${ pageId2 }`,
 							format: 'json',
 						} );
 						return successfulResponse( responseA );
 					case 2:
 						expect( params ).to.eql( {
 							action: 'query',
-							pageids: `${pageId1}|${pageId2}`,
+							pageids: `${ pageId1 }|${ pageId2 }`,
 							continue: pageId2,
 							format: 'json',
 						} );
 						return successfulResponse( responseB );
 					default:
-						throw new Error( `Unexpected call #${call}` );
+						throw new Error( `Unexpected call #${ call }` );
 				}
 			}
 		}
@@ -1004,7 +1004,7 @@ describe( 'queryIncrementalPageByPageId', () => {
 					expect( response ).to.equal( page2B );
 					break;
 				default:
-					throw new Error( `Unexpected iteration #${iteration}` );
+					throw new Error( `Unexpected iteration #${ iteration }` );
 			}
 		}
 
@@ -1095,7 +1095,7 @@ describe( 'queryPotentialRevisionByRevisionId', () => {
 					expect( response[ pageOfRevision ] ).to.eql( { pageid: 456 } );
 					break;
 				default:
-					throw new Error( `Unexpected iteration #${iteration}` );
+					throw new Error( `Unexpected iteration #${ iteration }` );
 			}
 		}
 
@@ -1111,7 +1111,7 @@ describe( 'queryPotentialRevisionByRevisionId', () => {
 		const response = { query: { pages: [ page ] } };
 		const expectedParams = {
 			action: 'query',
-			revids: `${otherRevisionId}|${revisionId}`,
+			revids: `${ otherRevisionId }|${ revisionId }`,
 			prop: 'otherprop|revisions',
 		};
 		const session = singleGetSession( expectedParams, response );
@@ -1126,7 +1126,7 @@ describe( 'queryPotentialRevisionByRevisionId', () => {
 					expect( response ).to.eql( revision );
 					break;
 				default:
-					throw new Error( `Unexpected iteration #${iteration}` );
+					throw new Error( `Unexpected iteration #${ iteration }` );
 			}
 		}
 
@@ -1181,7 +1181,7 @@ describe( 'queryPotentialRevisionByRevisionId', () => {
 						} );
 						return successfulResponse( response3 );
 					default:
-						throw new Error( `Unexpected call #${call}` );
+						throw new Error( `Unexpected call #${ call }` );
 				}
 			}
 		}
@@ -1201,7 +1201,7 @@ describe( 'queryPotentialRevisionByRevisionId', () => {
 					expect( response ).to.eql( revision );
 					break;
 				default:
-					throw new Error( `Unexpected iteration #${iteration}` );
+					throw new Error( `Unexpected iteration #${ iteration }` );
 			}
 		}
 
@@ -1230,7 +1230,7 @@ describe( 'queryPotentialRevisionByRevisionId', () => {
 					expect( response ).to.eql( revision );
 					break;
 				default:
-					throw new Error( `Unexpected iteration #${iteration}` );
+					throw new Error( `Unexpected iteration #${ iteration }` );
 			}
 		}
 
@@ -1291,7 +1291,7 @@ describe( 'queryFullRevisionByRevisionId', () => {
 						} );
 						return successfulResponse( response3 );
 					default:
-						throw new Error( `Unexpected call #${call}` );
+						throw new Error( `Unexpected call #${ call }` );
 				}
 			}
 		}
@@ -1392,7 +1392,7 @@ describe( 'queryFullPages', () => {
 					} );
 					break;
 				default:
-					throw new Error( `Unexpected iteration #${iteration}` );
+					throw new Error( `Unexpected iteration #${ iteration }` );
 			}
 		}
 
@@ -1437,7 +1437,7 @@ describe( 'queryFullPages', () => {
 					} );
 					break;
 				default:
-					throw new Error( `Unexpected iteration #${iteration}` );
+					throw new Error( `Unexpected iteration #${ iteration }` );
 			}
 		}
 
@@ -1494,7 +1494,7 @@ describe( 'queryFullPages', () => {
 					expect( page ).to.eql( { pageid: 5 } );
 					break;
 				default:
-					throw new Error( `Unexpected iteration #${iteration}` );
+					throw new Error( `Unexpected iteration #${ iteration }` );
 			}
 		}
 
@@ -1555,7 +1555,7 @@ describe( 'queryFullRevisions', () => {
 					expect( revision[ pageOfRevision ] ).to.eql( { pageid: 3 } );
 					break;
 				default:
-					throw new Error( `Unexpected iteration #${iteration}` );
+					throw new Error( `Unexpected iteration #${ iteration }` );
 			}
 		}
 
@@ -1629,7 +1629,7 @@ describe( 'queryFullRevisions', () => {
 					expect( revision ).to.eql( { revid: 41 } );
 					break;
 				default:
-					throw new Error( `Unexpected iteration #${iteration}` );
+					throw new Error( `Unexpected iteration #${ iteration }` );
 			}
 		}
 

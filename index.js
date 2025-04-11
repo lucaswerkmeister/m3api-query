@@ -240,8 +240,8 @@ function setFrom( iterable, mapFn, thisArg ) {
 function disallowGenerator( params, paramName ) {
 	if ( params.generator !== undefined ) {
 		throw new RangeError(
-			`params.${paramName} cannot be used with generator ` +
-				`(${paramName} becomes the input for the generator)`,
+			`params.${ paramName } cannot be used with generator ` +
+				`(${ paramName } becomes the input for the generator)`,
 		);
 	}
 }
@@ -287,7 +287,7 @@ function makeParamsWithString( paramName, params, paramValue ) {
 	} else if ( values === undefined ) {
 		values = set( paramValue );
 	} else {
-		throw new RangeError( `params.${paramName} must be Set, Array, string, or undefined` );
+		throw new RangeError( `params.${ paramName } must be Set, Array, string, or undefined` );
 	}
 
 	return makeParams( { ...params, [ paramName ]: values } );
@@ -328,7 +328,7 @@ function makeParamsWithNumeric( paramName, params, paramValue ) {
 	} else if ( values === undefined ) {
 		values = set( paramValue );
 	} else {
-		throw new RangeError( `params.${paramName} must be Set, Array, string, number, or undefined` );
+		throw new RangeError( `params.${ paramName } must be Set, Array, string, number, or undefined` );
 	}
 
 	return makeParams( { ...params, [ paramName ]: values } );
@@ -421,12 +421,12 @@ function mergeValues( base, incremental, path ) {
 		if ( isObject( value ) ) {
 			return 'object';
 		}
-		return `${typeof value} (${value})`;
+		return `${ typeof value } (${ value })`;
 	}
 
 	throw new Error(
-		`Error merging objects from two responses at ${path}: ` +
-			`Cannot merge ${format( base )} with ${format( incremental )}`,
+		`Error merging objects from two responses at ${ path }: ` +
+			`Cannot merge ${ format( base ) } with ${ format( incremental ) }`,
 	);
 }
 
@@ -448,7 +448,7 @@ function mergeObjects( base, incremental, mergeValues, basePath = '' ) {
 		}
 
 		const baseValue = base[ key ];
-		const path = basePath ? `${basePath}.${key}` : key;
+		const path = basePath ? `${ basePath }.${ key }` : key;
 
 		if ( isObject( baseValue ) && isObject( incrementalValue ) ) {
 			mergeObjects( baseValue, incrementalValue, mergeValues, path );
