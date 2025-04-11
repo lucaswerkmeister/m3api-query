@@ -7,6 +7,8 @@ but this file may sometimes contain later improvements (e.g. typo fixes).
 
 ## next (not yet released)
 
+- Declared compatibility with m3api v0.9.0.
+  (v0.8.x remains supported.)
 - Updated dependencies.
 
 ## v0.2.0 (2023-07-10)
