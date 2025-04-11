@@ -5,7 +5,7 @@ This file records the changes in each m3api-query release.
 The annotated tag (and GitHub release) for each version also lists the changes,
 but this file may sometimes contain later improvements (e.g. typo fixes).
 
-## next (not yet released)
+## v0.2.1 (2025-04-11)
 
 - Declared compatibility with m3api v0.9.0.
   (v0.8.x remains supported.)
