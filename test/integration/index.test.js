@@ -19,13 +19,13 @@ describe( 'queryFullPageByTitle', () => {
 			userAgent,
 		} );
 
-		const page = await queryFullPageByTitle( session, 'belgrad', {
+		const page = await queryFullPageByTitle( session, 'nemačka', {
 			prop: set(),
 			converttitles: true,
 			redirects: true,
 		} );
 
-		expect( page.title ).to.equal( 'Београд' );
+		expect( page.title ).to.equal( 'Њемачка' );
 	} );
 
 } );
