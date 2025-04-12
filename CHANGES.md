@@ -9,6 +9,7 @@ but this file may sometimes contain later improvements (e.g. typo fixes).
 
 - First stable release 🎉
 - Require m3api v1.0.0.
+- Updated dependencies.
 
 ## v0.2.1 (2025-04-11)
 
