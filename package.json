@@ -11,11 +11,11 @@
 		"test:integration": "mocha test/integration/",
 		"doc": "jsdoc -c jsdoc/conf.json"
 	},
-	"homepage": "https://github.com/lucaswerkmeister/m3api-query#readme",
-	"bugs": "https://github.com/lucaswerkmeister/m3api-query/issues",
+	"homepage": "https://gitlab.wikimedia.org/repos/m3api/m3api-query/#m3api-query",
+	"bugs": "https://phabricator.wikimedia.org/tag/m3api/",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/lucaswerkmeister/m3api-query.git"
+		"url": "git+https://gitlab.wikimedia.org/repos/m3api/m3api-query.git"
 	},
 	"keywords": [
 		"mediawiki"

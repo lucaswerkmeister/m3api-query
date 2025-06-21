@@ -1,9 +1,0 @@
-name: Release
-on:
-  release:
-    types: [published]
-jobs:
-  release:
-    uses: lucaswerkmeister/m3api/.github/workflows/release.yaml@main
-    secrets:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

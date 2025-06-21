@@ -26,10 +26,8 @@ For the release notes (for users), see [CHANGES.md](./CHANGES.md).
 
 6. Push the tag.
 
-7. On GitHub, turn the tag into a proper release.
-   Use the tag message for the release notes,
-   but with line breaks removed.
-   Once the release is published, CI will automatically publish it to npm.
+7. On GitLab, wait for CI to publish the release,
+   then optionally tweak the release message (formatting) if required.
 
 8. Add a new section for the next release to `CHANGES.md`,
    and commit it with the message “Add CHANGES.md section for next release”:

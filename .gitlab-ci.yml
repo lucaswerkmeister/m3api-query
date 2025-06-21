@@ -1,0 +1,22 @@
+include:
+  - project: repos/m3api/ci-templates
+    file: /test+release.yml
+
+stages:
+  - test
+  - release
+
+test-job:
+  extends: .test-job
+
+test-package-lock-job:
+  extends: .test-package-lock-job
+
+release-job:
+  extends: .release-job
+
+publish-job:
+  extends: .publish-job
+
+doc-job:
+  extends: .doc-job

@@ -8,7 +8,7 @@ import { expect, use } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 use( chaiAsPromised );
 
-const userAgent = 'm3api-query-integration-tests (https://github.com/lucaswerkmeister/m3api-query/)';
+const userAgent = 'm3api-query-integration-tests (https://phabricator.wikimedia.org/tag/m3api/)';
 
 describe( 'queryFullPageByTitle', () => {
 
