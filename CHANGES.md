@@ -11,6 +11,7 @@ but this file may sometimes contain later improvements (e.g. typo fixes).
   If you use the library via npm, nothing should change for you,
   but if you cloned the repository from GitHub, please change the remote to
   <https://gitlab.wikimedia.org/repos/m3api/m3api-query.git>.
+- Updated dependencies.
 
 ## v1.0.0 (2025-04-12)
 
