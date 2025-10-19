@@ -380,13 +380,15 @@ function successfulResponse( body ) {
 }
 
 function singleGetSession( expectedParams, response ) {
-	expectedParams.format = 'json';
 	let called = false;
 	class TestSession extends BaseTestSession {
 		async internalGet( apiUrl, params ) {
 			expect( called, 'internalGet already called' ).to.be.false;
 			called = true;
-			expect( params ).to.eql( expectedParams );
+			if ( expectedParams ) {
+				expectedParams.format = 'json';
+				expect( params ).to.eql( expectedParams );
+			}
 			return successfulResponse( response );
 		}
 	}
@@ -399,8 +401,10 @@ function sequentialGetSession( expectedCalls ) {
 		async internalGet( apiUrl, params ) {
 			expect( expectedCalls ).to.not.be.empty;
 			const [ { expectedParams, response } ] = expectedCalls.splice( -1 );
-			expectedParams.format = 'json';
-			expect( params ).to.eql( expectedParams );
+			if ( expectedParams ) {
+				expectedParams.format = 'json';
+				expect( params ).to.eql( expectedParams );
+			}
 			return successfulResponse( response );
 		}
 	}
@@ -1501,6 +1505,64 @@ describe( 'queryFullPages', () => {
 		expect( iteration ).to.equal( 5 );
 	} );
 
+	describe( 'checks if parameters can produce pages', () => {
+
+		it( 'titles is valid', async () => {
+			const title = 'Title';
+			const response = { query: { pages: [ { title } ] }, batchcomplete: true };
+			const session = singleGetSession( null, response );
+			await queryFullPages( session, { titles: title } ).next();
+		} );
+
+		it( 'pageids is valid', async () => {
+			const pageid = 123;
+			const response = { query: { pages: [ { pageid } ] }, batchcomplete: true };
+			const session = singleGetSession( null, response );
+			await queryFullPages( session, { pageids: pageid } ).next();
+		} );
+
+		it( 'revids is valid', async () => {
+			const revid = 123;
+			const response = { query: { pages: [ { pageid: 12 } ] }, batchcomplete: true };
+			const session = singleGetSession( null, response );
+			await queryFullPages( session, { revids: revid } ).next();
+		} );
+
+		it( 'generator is valid', async () => {
+			const response = { batchcomplete: true };
+			const session = singleGetSession( null, response );
+			await queryFullPages( session, { generator: 'generator' } ).next();
+		} );
+
+		it( 'empty params are invalid', async () => {
+			const session = new BaseTestSession();
+			await expect( queryFullPages( session, {} ).next() )
+				.to.be.rejectedWith( new RegExp(
+					'^' +
+					'Request params for queryFullPages\\(\\) must include titles, pageids, revids, and/or generator!' +
+					'$',
+				) );
+		} );
+
+		for ( const { listParam, testName } of [
+			{ listParam: 'allpages', testName: 'string param' },
+			{ listParam: [ 'allpages' ], testName: 'single-element array' },
+			{ listParam: set( 'allpages' ), testName: 'single-element set' },
+		] ) {
+			it( `list= params are invalid (custom message for ${ testName })`, async () => {
+				const session = new BaseTestSession();
+				await expect( queryFullPages( session, { list: listParam } ).next() )
+					.to.be.rejectedWith( new RegExp(
+						'^' +
+						'Request params for queryFullPages\\(\\) must include titles, pageids, revids, and/or generator! ' +
+						'You probably want to change list=allpages to generator=allpages, and prefix its parameters with "g".' +
+						'$',
+					) );
+			} );
+		}
+
+	} );
+
 } );
 
 describe( 'queryFullRevisions', () => {
@@ -1563,7 +1625,7 @@ describe( 'queryFullRevisions', () => {
 	} );
 
 	it( 'returns missing revisions', async () => {
-		const expectedParams = { action: 'query', prop: 'revisions' };
+		const expectedParams = { action: 'query', prop: 'revisions', revids: '123|789' };
 		const response = { query: {
 			badrevids: { 123: { revid: 123 } },
 			pages: [ { pageid: 456, revisions: [ { revid: 789 } ] } ],
@@ -1572,7 +1634,7 @@ describe( 'queryFullRevisions', () => {
 		const session = singleGetSession( expectedParams, response );
 
 		let iteration = 0;
-		for await ( const revision of queryFullRevisions( session, {} ) ) {
+		for await ( const revision of queryFullRevisions( session, { revids: [ 123, 789 ] } ) ) {
 			switch ( ++iteration ) {
 				case 1:
 					expect( revision ).to.eql( { revid: 123, missing: true } );
@@ -1634,6 +1696,32 @@ describe( 'queryFullRevisions', () => {
 		}
 
 		expect( iteration ).to.equal( 5 );
+	} );
+
+	describe( 'checks if parameters can produce pages', () => {
+
+		// subset of the queryFullPages tests
+
+		it( 'titles is valid', async () => {
+			const title = 'Title';
+			const response = { query: { pages: [ {
+				title,
+				revisions: [ { revid: 123 } ],
+			} ] }, batchcomplete: true };
+			const session = singleGetSession( null, response );
+			await queryFullRevisions( session, { titles: title } ).next();
+		} );
+
+		it( 'empty params are invalid', async () => {
+			const session = new BaseTestSession();
+			await expect( queryFullRevisions( session, {} ).next() )
+				.to.be.rejectedWith( new RegExp(
+					'^' +
+					'Request params for queryFullRevisions\\(\\) must include titles, pageids, revids, and/or generator!' +
+					'$',
+				) );
+		} );
+
 	} );
 
 } );

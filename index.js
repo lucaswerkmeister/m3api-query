@@ -375,6 +375,39 @@ function isObject( value ) {
 }
 
 /**
+ * Assert that the given params will produce an API response
+ * which (potentially, if miser mode does not interfere) contains "pages".
+ *
+ * @private
+ * @param {Object} params
+ * @param {string} caller
+ */
+function assertReturnsPages( params, caller ) {
+	if (
+		params.titles !== undefined ||
+		params.pageids !== undefined ||
+		params.revids !== undefined ||
+		params.generator !== undefined
+	) {
+		return;
+	}
+	let message = `Request params for ${ caller }() must include titles, pageids, revids, and/or generator!`;
+	if ( params.list !== undefined ) {
+		let list = params.list;
+		if ( isArray( list ) && list.length === 1 ) {
+			list = list[ 0 ];
+		} else if ( list instanceof Set && list.size === 1 ) {
+			list = list.values().next().value;
+		}
+		if ( typeof list === 'string' ) {
+			message += ` You probably want to change list=${ list } to generator=${ list },` +
+				' and prefix its parameters with "g".';
+		}
+	}
+	throw new Error( message );
+}
+
+/**
  * Merge two values, one from a base object
  * (based on an earlier response, possibly already merged),
  * one from the latest response.
@@ -882,6 +915,7 @@ async function * queryFullPages(
 		...options,
 	};
 
+	assertReturnsPages( params, 'queryFullPages' );
 	params = makeParams( params );
 	const reducer = ( batch, response ) => {
 		let pages = ( response.query || {} ).pages || [];
@@ -952,6 +986,7 @@ async function * queryFullRevisions(
 		...options,
 	};
 
+	assertReturnsPages( params, 'queryFullRevisions' );
 	params = makeParamsWithString( 'prop', params, 'revisions' );
 	options = {
 		dropTruncatedResultWarning: true,

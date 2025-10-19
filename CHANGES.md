@@ -7,7 +7,10 @@ but this file may sometimes contain later improvements (e.g. typo fixes).
 
 ## next (not yet released)
 
-No changes yet.
+- `queryFullPages()` and `queryFullRevisions()` will now error out if called with invalid parameters
+  (usually: using a “list”-type module as a `list` rather than a `generator`),
+  instead of potentially sending a neverending stream of internal continuation requests
+  which will never yield any pages and that the caller can’t interrupt.
 
 ## v1.0.1 (2025-09-15)
 
