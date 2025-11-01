@@ -1797,10 +1797,10 @@ describe( 'queryFullRevisions', () => {
 				response: { query: { pages: [
 					{ pageid: 2, revisions: [ { revid: 210 } ] },
 					{ pageid: 1, revisions: [ { revid: 120 }, { revid: 110 } ] },
-				] }, continue: { gapc: '3' }, batchcomplete: true },
+				] }, continue: { garc: '3' }, batchcomplete: true },
 			},
 			{
-				expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', gapc: '3' },
+				expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', garc: '3' },
 				response: { query: { pages: [
 					{ pageid: 4, revisions: [ { revid: 41 } ] },
 					{ pageid: 3, revisions: [ { revid: 31 } ] },
@@ -1872,47 +1872,47 @@ describe( 'queryFullRevisions', () => {
 			const session = sequentialGetSession( [
 				{
 					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions' },
-					response: { continue: { gapc: '3' }, batchcomplete: true },
+					response: { continue: { garc: '3' }, batchcomplete: true },
 				},
 				{
-					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', gapc: '3' },
-					response: { continue: { gapc: '6' }, batchcomplete: true },
+					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', garc: '3' },
+					response: { continue: { garc: '6' }, batchcomplete: true },
 				},
 				{
-					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', gapc: '6' },
-					response: { continue: { gapc: '9' }, batchcomplete: true },
+					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', garc: '6' },
+					response: { continue: { garc: '9' }, batchcomplete: true },
 				},
 				{
-					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', gapc: '9' },
+					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', garc: '9' },
 					response: { query: { pages: [
 						{ revisions: [ { revid: 9 } ] },
-					] }, continue: { gapc: '12' }, batchcomplete: true },
+					] }, continue: { garc: '12' }, batchcomplete: true },
 				},
 				{
-					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', gapc: '12' },
-					response: { continue: { gapc: '15' }, batchcomplete: true },
+					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', garc: '12' },
+					response: { continue: { garc: '15' }, batchcomplete: true },
 				},
 				{
-					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', gapc: '15' },
+					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', garc: '15' },
 					response: { query: { pages: [
 						{ revisions: [ { revid: 15 } ] },
-					] }, continue: { gapc: '18' }, batchcomplete: true },
+					] }, continue: { garc: '18' }, batchcomplete: true },
 				},
 				{
-					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', gapc: '18' },
-					response: { continue: { gapc: '21' }, batchcomplete: true },
+					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', garc: '18' },
+					response: { continue: { garc: '21' }, batchcomplete: true },
 				},
 				{
-					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', gapc: '21' },
-					response: { continue: { gapc: '24' }, batchcomplete: true },
+					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', garc: '21' },
+					response: { continue: { garc: '24' }, batchcomplete: true },
 				},
 				{
-					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', gapc: '24' },
-					response: { continue: { gapc: '27' }, batchcomplete: true },
+					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', garc: '24' },
+					response: { continue: { garc: '27' }, batchcomplete: true },
 				},
 				{
-					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', gapc: '27' },
-					response: { continue: { gapc: '30' }, batchcomplete: true },
+					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', garc: '27' },
+					response: { continue: { garc: '30' }, batchcomplete: true },
 				},
 			] );
 
