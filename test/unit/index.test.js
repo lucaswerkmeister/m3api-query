@@ -6,6 +6,8 @@ import {
 	getResponsePageByTitle,
 	getResponsePageByPageId,
 	getResponseRevisionByRevisionId,
+	TooManyEmptyResponsesError,
+	maxEmptyResponses,
 	queryPartialPageByTitle,
 	queryIncrementalPageByTitle,
 	queryFullPageByTitle,
@@ -399,7 +401,7 @@ function sequentialGetSession( expectedCalls ) {
 	expectedCalls.reverse();
 	class TestSession extends BaseTestSession {
 		async internalGet( apiUrl, params ) {
-			expect( expectedCalls ).to.not.be.empty;
+			expect( expectedCalls, 'remaining expected calls' ).to.not.be.empty;
 			const [ { expectedParams, response } ] = expectedCalls.splice( -1 );
 			if ( expectedParams ) {
 				expectedParams.format = 'json';
@@ -1563,6 +1565,144 @@ describe( 'queryFullPages', () => {
 
 	} );
 
+	describe( 'maxEmptyResponses( limit: 3 )', () => {
+
+		it( 'stops at limit + 1 consecutive empty responses', async () => {
+			const session = sequentialGetSession( [
+				{
+					expectedParams: { action: 'query', generator: 'ap' },
+					response: { continue: { gapc: '3' }, batchcomplete: true },
+				},
+				{
+					expectedParams: { action: 'query', generator: 'ap', gapc: '3' },
+					response: { continue: { gapc: '6' }, batchcomplete: true },
+				},
+				{
+					expectedParams: { action: 'query', generator: 'ap', gapc: '6' },
+					response: { continue: { gapc: '9' }, batchcomplete: true },
+				},
+				{
+					expectedParams: { action: 'query', generator: 'ap', gapc: '9' },
+					response: { continue: { gapc: '12' }, batchcomplete: true },
+				},
+			] );
+
+			await expect( queryFullPages( session, {
+				action: 'query',
+				generator: 'ap', // “allpages”, see above
+			}, {
+				...maxEmptyResponses( 3 ),
+			} ).next() )
+				.to.be.rejectedWith( TooManyEmptyResponsesError );
+		} );
+
+		it( 'allows limit consecutive empty responses', async () => {
+			const session = sequentialGetSession( [
+				{
+					expectedParams: { action: 'query', generator: 'ap' },
+					response: { continue: { gapc: '3' }, batchcomplete: true },
+				},
+				{
+					expectedParams: { action: 'query', generator: 'ap', gapc: '3' },
+					response: { continue: { gapc: '6' }, batchcomplete: true },
+				},
+				{
+					expectedParams: { action: 'query', generator: 'ap', gapc: '6' },
+					response: { continue: { gapc: '9' }, batchcomplete: true },
+				},
+				{
+					expectedParams: { action: 'query', generator: 'ap', gapc: '9' },
+					response: { query: { pages: [
+						{ pageid: 9 },
+					] }, continue: { gapc: '12' }, batchcomplete: true },
+				},
+			] );
+
+			const { value: page } = await queryFullPages( session, {
+				action: 'query',
+				generator: 'ap', // “allpages”, see above
+			}, {
+				...maxEmptyResponses( 3 ),
+			} ).next();
+			expect( page ).to.eql( { pageid: 9 } );
+		} );
+
+		it( 'allows limit+1 non-consecutive empty responses', async () => {
+			const session = sequentialGetSession( [
+				{
+					expectedParams: { action: 'query', generator: 'ap' },
+					response: { continue: { gapc: '3' }, batchcomplete: true },
+				},
+				{
+					expectedParams: { action: 'query', generator: 'ap', gapc: '3' },
+					response: { query: { pages: [
+						{ pageid: 3 },
+					] }, continue: { gapc: '6' }, batchcomplete: true },
+				},
+				{
+					expectedParams: { action: 'query', generator: 'ap', gapc: '6' },
+					response: { continue: { gapc: '9' }, batchcomplete: true },
+				},
+				{
+					expectedParams: { action: 'query', generator: 'ap', gapc: '9' },
+					response: { query: { pages: [
+						{ pageid: 9 },
+					] }, continue: { gapc: '12' }, batchcomplete: true },
+				},
+				{
+					expectedParams: { action: 'query', generator: 'ap', gapc: '12' },
+					response: { continue: { gapc: '15' }, batchcomplete: true },
+				},
+				{
+					expectedParams: { action: 'query', generator: 'ap', gapc: '15' },
+					response: { query: { pages: [
+						{ pageid: 15 },
+					] }, continue: { gapc: '18' }, batchcomplete: true },
+				},
+				{
+					expectedParams: { action: 'query', generator: 'ap', gapc: '18' },
+					response: { continue: { gapc: '21' }, batchcomplete: true },
+				},
+				{
+					expectedParams: { action: 'query', generator: 'ap', gapc: '21' },
+					response: { query: { pages: [
+						{ pageid: 21 },
+					] }, continue: { gapc: '24' }, batchcomplete: true },
+				},
+				{
+					expectedParams: { action: 'query', generator: 'ap', gapc: '24' },
+					response: { batchcomplete: true },
+				},
+			] );
+
+			let iteration = 0;
+			for await ( const page of queryFullPages( session, {
+				action: 'query',
+				generator: 'ap', // “allpages”, see above
+			}, {
+				...maxEmptyResponses( 3 ),
+			} ) ) {
+				switch ( ++iteration ) {
+					case 1:
+						expect( page ).to.eql( { pageid: 3 } );
+						break;
+					case 2:
+						expect( page ).to.eql( { pageid: 9 } );
+						break;
+					case 3:
+						expect( page ).to.eql( { pageid: 15 } );
+						break;
+					case 4:
+						expect( page ).to.eql( { pageid: 21 } );
+						break;
+				}
+			}
+
+			expect( iteration ).to.equal( 4 );
+		} );
+
+	} );
+
 } );
 
 describe( 'queryFullRevisions', () => {
@@ -1720,6 +1860,79 @@ describe( 'queryFullRevisions', () => {
 					'Request params for queryFullRevisions\\(\\) must include titles, pageids, revids, and/or generator!' +
 					'$',
 				) );
+		} );
+
+	} );
+
+	describe( 'maxEmptyResponses( limit: 3 )', () => {
+
+		// amalgam of the queryFullPages tests
+
+		it( 'allows limit empty + 1 nonempty + 1 empty + 1 nonempty responses, then stops at limit + 1 consecutive empty responses', async () => {
+			const session = sequentialGetSession( [
+				{
+					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions' },
+					response: { continue: { gapc: '3' }, batchcomplete: true },
+				},
+				{
+					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', gapc: '3' },
+					response: { continue: { gapc: '6' }, batchcomplete: true },
+				},
+				{
+					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', gapc: '6' },
+					response: { continue: { gapc: '9' }, batchcomplete: true },
+				},
+				{
+					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', gapc: '9' },
+					response: { query: { pages: [
+						{ revisions: [ { revid: 9 } ] },
+					] }, continue: { gapc: '12' }, batchcomplete: true },
+				},
+				{
+					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', gapc: '12' },
+					response: { continue: { gapc: '15' }, batchcomplete: true },
+				},
+				{
+					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', gapc: '15' },
+					response: { query: { pages: [
+						{ revisions: [ { revid: 15 } ] },
+					] }, continue: { gapc: '18' }, batchcomplete: true },
+				},
+				{
+					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', gapc: '18' },
+					response: { continue: { gapc: '21' }, batchcomplete: true },
+				},
+				{
+					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', gapc: '21' },
+					response: { continue: { gapc: '24' }, batchcomplete: true },
+				},
+				{
+					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', gapc: '24' },
+					response: { continue: { gapc: '27' }, batchcomplete: true },
+				},
+				{
+					expectedParams: { action: 'query', generator: 'ar', prop: 'revisions', gapc: '27' },
+					response: { continue: { gapc: '30' }, batchcomplete: true },
+				},
+			] );
+
+			const asyncGenerator = queryFullRevisions( session, {
+				action: 'query',
+				generator: 'ar', // “allrevisions”, see above
+			}, {
+				...maxEmptyResponses( 3 ),
+			} );
+
+			let { done, value: revision } = await asyncGenerator.next();
+			expect( done ).to.be.false;
+			expect( revision ).to.eql( { revid: 9 } );
+
+			( { done, value: revision } = await asyncGenerator.next() );
+			expect( done ).to.be.false;
+			expect( revision ).to.eql( { revid: 15 } );
+
+			await expect( asyncGenerator.next() )
+				.to.be.rejectedWith( TooManyEmptyResponsesError );
 		} );
 
 	} );

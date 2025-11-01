@@ -180,6 +180,15 @@ for await ( const revision of queryFullRevisions( session, {
 }
 ```
 
+## Stability
+
+m3api-query follows the same slightly modified version of semantic versioning as m3api;
+see the [m3api README][m3api-stability] for details.
+In brief, changes to the internal interface,
+announced as internal breaking changes in the changelog,
+may take place between different minor versions.
+(Non-internal breaking changes only occur on major versions, as usual.)
+
 ## License
 
 Published under the [ISC License][].
@@ -187,4 +196,5 @@ By contributing to this software,
 you agree to publish your contribution under the same license.
 
 [m3api]: https://www.npmjs.com/package/m3api
+[m3api-stability]: https://www.npmjs.com/package/m3api#stability
 [ISC License]: https://spdx.org/licenses/ISC.html

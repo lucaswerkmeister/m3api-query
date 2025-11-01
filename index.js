@@ -502,6 +502,89 @@ function mergeObjects( base, incremental, mergeValues, basePath = '' ) {
 }
 
 /**
+ * An error indicating that {@link queryFullPages} or {@link queryFullRevisions}
+ * encountered more consecutive empty responses (with no pages or revisions) than expected,
+ * as configured via {@link maxEmptyResponses}.
+ */
+class TooManyEmptyResponsesError extends Error {
+
+	/**
+	 * @param {number} limit The configured limit (the {@link maxEmptyResponses} parameter).
+	 */
+	constructor( limit ) {
+		super( `Encountered more than ${ limit } consecutive empty responses, aborting.` );
+
+		if ( Error.captureStackTrace ) {
+			Error.captureStackTrace( this, TooManyEmptyResponsesError );
+		}
+
+		this.name = 'TooManyEmptyResponsesError';
+
+		/**
+		 * The configured limit (the {@link maxEmptyResponses} parameter).
+		 *
+		 * @member {number}
+		 */
+		this.limit = limit;
+	}
+
+}
+
+/**
+ * Limit the number of consecutive empty API responses to follow during continuation.
+ *
+ * Depending on the request parameters and wiki content (and configuration),
+ * it is possible for {@link queryFullPages} or {@link queryFullRevisions}
+ * to receive a long, potentially unlimited stream of responses with no pages or revisions.
+ * This means that they may keep sending API requests forever,
+ * without any way for the caller to stop them.
+ * This function offers a “emergency brake” mechanism to avoid this situation:
+ * if too many *consecutive* empty responses are seen,
+ * a {@link TooManyEmptyResponsesError} will be thrown.
+ *
+ * To use this function,
+ * spread the value it returns into the request options,
+ * for example:
+ * ```
+ * const session = new Session( '...', {
+ *     formatversion: 2,
+ *     // other default params
+ * }, {
+ *     // other default options
+ *     ...maxEmptyResponses( 10 ),
+ * } );
+ * ```
+ * Or:
+ * ```
+ * for await ( const page of queryFullPages( session, {
+ *     // params
+ * }, { ...maxEmptyResponses( 25 ) } ) ) {
+ *     // handle each page
+ * }
+ * ```
+ *
+ * @param {number} limit The maximum number of empty responses to allow.
+ * @return {Object} An object with (internal) request options.
+ */
+function maxEmptyResponses( limit = 10 ) {
+	let consecutiveEmptyResponses = 0;
+	function handleListFn( list ) {
+		if ( list.length === 0 ) {
+			if ( ++consecutiveEmptyResponses > limit ) {
+				throw new TooManyEmptyResponsesError( limit );
+			}
+		} else {
+			consecutiveEmptyResponses = 0;
+		}
+		return list;
+	}
+	return {
+		'm3api-query/handlePages': handleListFn,
+		'm3api-query/handleRevisions': handleListFn,
+	};
+}
+
+/**
  * Compare two objects for sorting.
  *
  * @callback compareFn
@@ -510,6 +593,18 @@ function mergeObjects( base, incremental, mergeValues, basePath = '' ) {
  * @return {number} A number greater than zero if a is greater than b,
  * a number less than zero if a is less than b,
  * or zero to keep the original order of a and b.
+ */
+
+/**
+ * Handle a list (of pages or revisions).
+ *
+ * This type is used by {@link maxEmptyResponses};
+ * you can ignore it.
+ *
+ * @callback handleListFn
+ * @protected
+ * @param {Array} list The list as returned from the API and sorted.
+ * @return {Array} The list that should actually be yielded.
  */
 
 /**
@@ -541,12 +636,22 @@ function mergeObjects( base, incremental, mergeValues, basePath = '' ) {
  * <code>( { revid: r1 }, { revid: r2 } ) => r1 - r2</code>
  * to sort revisions according to their revision ID (yield lower revision IDs first).
  * Defaults to null (no sorting).
+ * @property {handleListFn|null} ['m3api-query/handlePages']
+ * Internal option to handle a list of pages before yielding it from {@link queryFullPages}.
+ * Used by {@link maxEmptyResponses};
+ * using this option directly is strongly discouraged.
+ * @property {handleListFn|null} ['m3api-query/handleRevisions']
+ * Internal option to handle a list of pages before yielding it from {@link queryFullRevisions}.
+ * Used by {@link maxEmptyResponses};
+ * using this option directly is strongly discouraged.
  */
 
 Object.assign( DEFAULT_OPTIONS, {
 	'm3api-query/mergeValues': mergeValues,
 	'm3api-query/comparePages': null,
 	'm3api-query/compareRevisions': null,
+	'm3api-query/handlePages': null,
+	'm3api-query/handleRevisions': null,
 } );
 
 /**
@@ -909,6 +1014,7 @@ async function * queryFullPages(
 	const {
 		'm3api-query/mergeValues': mergeValues,
 		'm3api-query/comparePages': comparePages,
+		'm3api-query/handlePages': handlePages,
 	} = {
 		...DEFAULT_OPTIONS,
 		...session.defaultOptions,
@@ -942,12 +1048,20 @@ async function * queryFullPages(
 		reducer,
 		initial,
 	) ) {
+		let pages = batch.values();
+
 		if ( comparePages !== null ) {
-			const pages = [ ...batch.values() ];
-			yield * pages.sort( comparePages );
-		} else {
-			yield * batch.values();
+			pages = [ ...pages ].sort( comparePages );
 		}
+
+		if ( handlePages !== null ) {
+			if ( !Array.isArray( pages ) ) {
+				pages = [ ...pages ];
+			}
+			pages = handlePages( pages ) || pages;
+		}
+
+		yield * pages;
 	}
 }
 
@@ -980,6 +1094,7 @@ async function * queryFullRevisions(
 ) {
 	const {
 		'm3api-query/compareRevisions': compareRevisions,
+		'm3api-query/handleRevisions': handleRevisions,
 	} = {
 		...DEFAULT_OPTIONS,
 		...session.defaultOptions,
@@ -995,7 +1110,7 @@ async function * queryFullRevisions(
 
 	for await ( const response of session.requestAndContinue( params, options ) ) {
 		const query = response.query || {};
-		const batch = [];
+		let batch = [];
 
 		for ( const revision of Object.values( query.badrevids || {} ) ) {
 			batch.push( missingRevision( revision, response, query ) );
@@ -1013,10 +1128,14 @@ async function * queryFullRevisions(
 		}
 
 		if ( compareRevisions !== null ) {
-			yield * batch.sort( compareRevisions );
-		} else {
-			yield * batch;
+			batch = batch.sort( compareRevisions );
 		}
+
+		if ( handleRevisions !== null ) {
+			batch = handleRevisions( batch ) || batch;
+		}
+
+		yield * batch;
 	}
 }
 
@@ -1026,6 +1145,8 @@ export {
 	getResponsePageByPageId,
 	getResponseRevisionByRevisionId,
 	mergeValues,
+	TooManyEmptyResponsesError,
+	maxEmptyResponses,
 	queryPartialPageByTitle,
 	queryIncrementalPageByTitle,
 	queryFullPageByTitle,

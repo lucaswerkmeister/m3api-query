@@ -11,6 +11,16 @@ but this file may sometimes contain later improvements (e.g. typo fixes).
   (usually: using a “list”-type module as a `list` rather than a `generator`),
   instead of potentially sending a neverending stream of internal continuation requests
   which will never yield any pages and that the caller can’t interrupt.
+- A new function, `maxEmptyResponses()`, can be used to limit the number of empty responses
+  that `queryFullPages()` and `queryFullRevisions()` will follow before “giving up”.
+  This can be used to guard against similar situations as described above,
+  but for parameters where it cannot be known statically whether they will yield results or not
+  (for example: `generator=allrevisions` limited to a namespace with no pages in it).
+- m3api-query now follows the same slightly modified version of semantic versioning as m3api
+  (see the [m3api README][m3api-stability] for details).
+  The initial components of the internal interface
+  are the new `m3api-query/handlePages` and `m3api-query/handleRevisions` request options,
+  which are used by `maxEmptyResponses()` (see above).
 
 ## v1.0.1 (2025-09-15)
 
@@ -78,3 +88,4 @@ Initial release, including:
 
 [m3api-query-doc-latest]: https://lucaswerkmeister.github.io/m3api-query/
 [m3api-query-doc-v0.1.1]: https://lucaswerkmeister.github.io/m3api-query/v0.1.1/
+[m3api-stability]: https://www.npmjs.com/package/m3api#stability
