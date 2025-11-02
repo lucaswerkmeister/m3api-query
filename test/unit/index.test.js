@@ -352,6 +352,23 @@ describe( 'getResponseRevisionByRevisionId', () => {
 
 } );
 
+/**
+ * Creates an object like a jQuery Deferred:
+ * a thenable with externally callable resolve() and reject() methods.
+ *
+ * @return {Promise}
+ */
+function deferred() {
+	let resolve, reject;
+	const promise = new Promise( ( resolve_, reject_ ) => {
+		resolve = resolve_;
+		reject = reject_;
+	} );
+	promise.resolve = resolve;
+	promise.reject = reject;
+	return promise;
+}
+
 class BaseTestSession extends Session {
 
 	constructor() {
@@ -402,7 +419,7 @@ function sequentialGetSession( expectedCalls ) {
 	class TestSession extends BaseTestSession {
 		async internalGet( apiUrl, params ) {
 			expect( expectedCalls, 'remaining expected calls' ).to.not.be.empty;
-			const [ { expectedParams, response } ] = expectedCalls.splice( -1 );
+			const { expectedParams, response } = await expectedCalls.splice( -1 )[ 0 ];
 			if ( expectedParams ) {
 				expectedParams.format = 'json';
 				expect( params ).to.eql( expectedParams );
@@ -1699,6 +1716,94 @@ describe( 'queryFullPages', () => {
 			}
 
 			expect( iteration ).to.equal( 4 );
+		} );
+
+		it( 'keeps track of different requests separately', async () => {
+			const request1Call1Deferred = deferred(), request1Call1 = {
+				expectedParams: { action: 'query', generator: 'ap', gapn: '1' },
+				response: { continue: { gapc: '3' }, batchcomplete: true },
+			};
+			const request2Call1Deferred = deferred(), request2Call1 = {
+				expectedParams: { action: 'query', generator: 'ap', gapn: '2' },
+				response: { continue: { gapc: '3' }, batchcomplete: true },
+			};
+			const request1Call2Deferred = deferred(), request1Call2 = {
+				expectedParams: { action: 'query', generator: 'ap', gapn: '1', gapc: '3' },
+				response: { continue: { gapc: '6' }, batchcomplete: true },
+			};
+			const request2Call2Deferred = deferred(), request2Call2 = {
+				expectedParams: { action: 'query', generator: 'ap', gapn: '2', gapc: '3' },
+				response: { continue: { gapc: '6' }, batchcomplete: true },
+			};
+			const request1Call3Deferred = deferred(), request1Call3 = {
+				expectedParams: { action: 'query', generator: 'ap', gapn: '1', gapc: '6' },
+				response: { query: { pages: [
+					{ pageid: 6 },
+				] }, continue: { gapc: '9' }, batchcomplete: true },
+			};
+			const request2Call3Deferred = deferred(), request2Call3 = {
+				expectedParams: { action: 'query', generator: 'ap', gapn: '2', gapc: '6' },
+				response: { continue: { gapc: '9' }, batchcomplete: true },
+			};
+			const request1Call4Deferred = deferred(), request1Call4 = {
+				expectedParams: { action: 'query', generator: 'ap', gapn: '1', gapc: '9' },
+				response: { continue: { gapc: '12' }, batchcomplete: true },
+			};
+			const request2Call4Deferred = deferred(), request2Call4 = {
+				expectedParams: { action: 'query', generator: 'ap', gapn: '2', gapc: '9' },
+				response: { continue: { gapc: '12' }, batchcomplete: true },
+			};
+			const request1Call5Deferred = deferred(), request1Call5 = {
+				expectedParams: { action: 'query', generator: 'ap', gapn: '1', gapc: '12' },
+				response: { query: { pages: [
+					{ pageid: 12 },
+				] }, continue: { gapc: '15' }, batchcomplete: true },
+			};
+			const session = sequentialGetSession( [
+				request1Call1Deferred,
+				request2Call1Deferred,
+				request1Call2Deferred,
+				request2Call2Deferred,
+				request1Call3Deferred,
+				request2Call3Deferred,
+				request1Call4Deferred,
+				request2Call4Deferred,
+				request1Call5Deferred,
+			] );
+			const options = {
+				...maxEmptyResponses( 3 ),
+			};
+			const request1AsyncGenerator = queryFullPages( session, {
+				generator: 'ap', // “allpages”, see above
+				gapn: '1', // “gapnamespace”, likewise
+			}, options );
+			let request1Promise = request1AsyncGenerator.next();
+			const request2AsyncGenerator = queryFullPages( session, {
+				generator: 'ap', // “allpages”, see above
+				gapn: '2', // “gapnamespace”, likewise
+			}, options );
+			const request2Promise = request2AsyncGenerator.next();
+
+			request1Call1Deferred.resolve( request1Call1 );
+			request2Call1Deferred.resolve( request2Call1 );
+			request1Call2Deferred.resolve( request1Call2 );
+			request2Call2Deferred.resolve( request2Call2 );
+			request1Call3Deferred.resolve( request1Call3 );
+			let { done, value: page } = await request1Promise;
+			expect( done ).to.be.false;
+			expect( page ).to.eql( { pageid: 6 } );
+			request1Promise = request1AsyncGenerator.next();
+
+			request2Call3Deferred.resolve( request2Call3 );
+			request1Call4Deferred.resolve( request1Call4 );
+			request2Call4Deferred.resolve( request2Call4 );
+			await expect( request2Promise )
+				.to.be.rejectedWith( TooManyEmptyResponsesError );
+
+			request1Call5Deferred.resolve( request1Call5 );
+			( { done, value: page } = await request1Promise );
+			expect( done ).to.be.false;
+			expect( page ).to.eql( { pageid: 12 } );
 		} );
 
 	} );

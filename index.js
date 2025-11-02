@@ -567,14 +567,14 @@ class TooManyEmptyResponsesError extends Error {
  * @return {Object} An object with (internal) request options.
  */
 function maxEmptyResponses( limit = 10 ) {
-	let consecutiveEmptyResponses = 0;
-	function handleListFn( list ) {
+	function handleListFn( list, session, params, options, state ) {
 		if ( list.length === 0 ) {
-			if ( ++consecutiveEmptyResponses > limit ) {
+			state.consecutiveEmptyResponses = ( state.consecutiveEmptyResponses || 0 ) + 1;
+			if ( state.consecutiveEmptyResponses > limit ) {
 				throw new TooManyEmptyResponsesError( limit );
 			}
 		} else {
-			consecutiveEmptyResponses = 0;
+			state.consecutiveEmptyResponses = 0;
 		}
 		return list;
 	}
@@ -604,7 +604,14 @@ function maxEmptyResponses( limit = 10 ) {
  * @callback handleListFn
  * @protected
  * @param {Array} list The list as returned from the API and sorted.
- * @return {Array} The list that should actually be yielded.
+ * @param {Session} session The session the function was called with.
+ * @param {Object} params The params the function was called with.
+ * @param {Object} options The options the function was called with.
+ * @param {Object} state An initially object where the handle function may store
+ * any state it wants to preserve between calls,
+ * within the same {@link queryFullPages} / {@link queryFullRevisions} call.
+ * @return {Array|null|undefined} The list that should actually be yielded,
+ * or null/undefined to reuse the input list (which may have been modified in-place).
  */
 
 /**
@@ -1020,6 +1027,7 @@ async function * queryFullPages(
 		...session.defaultOptions,
 		...options,
 	};
+	const state = {}; // for handlePages
 
 	assertReturnsPages( params, 'queryFullPages' );
 	params = makeParams( params );
@@ -1058,7 +1066,7 @@ async function * queryFullPages(
 			if ( !Array.isArray( pages ) ) {
 				pages = [ ...pages ];
 			}
-			pages = handlePages( pages ) || pages;
+			pages = handlePages( pages, session, params, options, state ) || pages;
 		}
 
 		yield * pages;
@@ -1100,6 +1108,7 @@ async function * queryFullRevisions(
 		...session.defaultOptions,
 		...options,
 	};
+	const state = {}; // for handleRevisions
 
 	assertReturnsPages( params, 'queryFullRevisions' );
 	params = makeParamsWithString( 'prop', params, 'revisions' );
@@ -1132,7 +1141,7 @@ async function * queryFullRevisions(
 		}
 
 		if ( handleRevisions !== null ) {
-			batch = handleRevisions( batch ) || batch;
+			batch = handleRevisions( batch, session, params, options, state ) || batch;
 		}
 
 		yield * batch;
