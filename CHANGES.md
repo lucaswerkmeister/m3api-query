@@ -5,6 +5,15 @@ This file records the changes in each m3api-query release.
 The annotated tag (and GitLab release) for each version also lists the changes,
 but this file may sometimes contain later improvements (e.g. typo fixes).
 
+<!--
+
+## v2.0.0 – planned breaking changes
+
+- Enable `maxEmptyResponses()` by default, with some reasonably high limit,
+  perhaps 1000 or even just 100.
+
+-->
+
 ## next (not yet released)
 
 - `queryFullPages()` and `queryFullRevisions()` will now error out if called with invalid parameters
