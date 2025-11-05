@@ -180,6 +180,27 @@ for await ( const revision of queryFullRevisions( session, {
 }
 ```
 
+### maxEmptyResponses
+
+If you’re using `queryFullPages()` or `queryFullRevisions()`,
+it’s a good idea to also add `maxEmptyResponses()` to the options,
+especially if you’re using various different or dynamic combinations of parameters.
+This prevents your application from potentially making a neverending stream of API requests.
+Usage example:
+
+```js
+const session = new Session( 'en.wikipedia.org', {
+	formatversion: 2,
+}, {
+	userAgent: 'm3api-query-README-example',
+	...maxEmptyResponses( 100 ),
+} );
+```
+
+The appropriate limit depends on the requests you’re going to make;
+if you’re not expecting gaps due to [miser mode](https://www.mediawiki.org/wiki/Manual:$wgMiserMode),
+you can use a much lower limit, perhaps 5 or 10.
+
 ## Stability
 
 m3api-query follows the same slightly modified version of semantic versioning as m3api;
