@@ -564,9 +564,16 @@ class TooManyEmptyResponsesError extends Error {
  * ```
  *
  * @param {number} limit The maximum number of empty responses to allow.
+ * You can specify Infinity to disable the limit.
  * @return {Object} An object with (internal) request options.
  */
 function maxEmptyResponses( limit = 10 ) {
+	if ( limit === Infinity ) {
+		return {
+			'm3api-query/handlePages': null,
+			'm3api-query/handleRevisions': null,
+		};
+	}
 	function handleListFn( list, session, params, options, state ) {
 		if ( list.length === 0 ) {
 			state.consecutiveEmptyResponses = ( state.consecutiveEmptyResponses || 0 ) + 1;

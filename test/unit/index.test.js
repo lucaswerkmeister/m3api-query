@@ -1346,6 +1346,26 @@ describe( 'queryFullRevisionByRevisionId', () => {
 
 } );
 
+describe( 'maxEmptyResponses', () => {
+
+	it( 'maxEmptyResponses( Infinity ) overrides maxEmptyResponses()', () => {
+		const defaultOptions = {
+			...maxEmptyResponses(),
+		};
+		const options = {
+			...defaultOptions,
+			...maxEmptyResponses( Infinity ),
+		};
+		expect( options ).to.eql( {
+			'm3api-query/handlePages': null,
+			'm3api-query/handleRevisions': null,
+		} );
+	} );
+
+	// the rest of maxEmptyResponses() is tested in queryFullPages() + queryFullRevisions() below
+
+} );
+
 describe( 'queryFullPages', () => {
 
 	it( 'follows continuation and returns full pages', async () => {
