@@ -15,7 +15,7 @@
 
 <div id="main">
 
-    <p class="version-warning"><strong>Warning:</strong> This is an old version. The latest stable version is <a href="../v1.1.0/index.js.html">v1.1.0</a>.</p>
+    <!-- VERSION-WARNING -->
 
     <h1 class="page-title">Source: index.js</h1>
 
@@ -268,8 +268,8 @@ function setFrom( iterable, mapFn, thisArg ) {
 function disallowGenerator( params, paramName ) {
 	if ( params.generator !== undefined ) {
 		throw new RangeError(
-			`params.${paramName} cannot be used with generator ` +
-				`(${paramName} becomes the input for the generator)`,
+			`params.${ paramName } cannot be used with generator ` +
+				`(${ paramName } becomes the input for the generator)`,
 		);
 	}
 }
@@ -315,7 +315,7 @@ function makeParamsWithString( paramName, params, paramValue ) {
 	} else if ( values === undefined ) {
 		values = set( paramValue );
 	} else {
-		throw new RangeError( `params.${paramName} must be Set, Array, string, or undefined` );
+		throw new RangeError( `params.${ paramName } must be Set, Array, string, or undefined` );
 	}
 
 	return makeParams( { ...params, [ paramName ]: values } );
@@ -356,7 +356,7 @@ function makeParamsWithNumeric( paramName, params, paramValue ) {
 	} else if ( values === undefined ) {
 		values = set( paramValue );
 	} else {
-		throw new RangeError( `params.${paramName} must be Set, Array, string, number, or undefined` );
+		throw new RangeError( `params.${ paramName } must be Set, Array, string, number, or undefined` );
 	}
 
 	return makeParams( { ...params, [ paramName ]: values } );
@@ -400,6 +400,39 @@ function makeParamsWithRevisionId( params, revisionId ) {
 const isArray = Array.isArray;
 function isObject( value ) {
 	return typeof value === 'object' &amp;&amp; value !== null &amp;&amp; !isArray( value );
+}
+
+/**
+ * Assert that the given params will produce an API response
+ * which (potentially, if miser mode does not interfere) contains "pages".
+ *
+ * @private
+ * @param {Object} params
+ * @param {string} caller
+ */
+function assertReturnsPages( params, caller ) {
+	if (
+		params.titles !== undefined ||
+		params.pageids !== undefined ||
+		params.revids !== undefined ||
+		params.generator !== undefined
+	) {
+		return;
+	}
+	let message = `Request params for ${ caller }() must include titles, pageids, revids, and/or generator!`;
+	if ( params.list !== undefined ) {
+		let list = params.list;
+		if ( isArray( list ) &amp;&amp; list.length === 1 ) {
+			list = list[ 0 ];
+		} else if ( list instanceof Set &amp;&amp; list.size === 1 ) {
+			list = list.values().next().value;
+		}
+		if ( typeof list === 'string' ) {
+			message += ` You probably want to change list=${ list } to generator=${ list },` +
+				' and prefix its parameters with "g".';
+		}
+	}
+	throw new Error( message );
 }
 
 /**
@@ -449,12 +482,12 @@ function mergeValues( base, incremental, path ) {
 		if ( isObject( value ) ) {
 			return 'object';
 		}
-		return `${typeof value} (${value})`;
+		return `${ typeof value } (${ value })`;
 	}
 
 	throw new Error(
-		`Error merging objects from two responses at ${path}: ` +
-			`Cannot merge ${format( base )} with ${format( incremental )}`,
+		`Error merging objects from two responses at ${ path }: ` +
+			`Cannot merge ${ format( base ) } with ${ format( incremental ) }`,
 	);
 }
 
@@ -476,7 +509,7 @@ function mergeObjects( base, incremental, mergeValues, basePath = '' ) {
 		}
 
 		const baseValue = base[ key ];
-		const path = basePath ? `${basePath}.${key}` : key;
+		const path = basePath ? `${ basePath }.${ key }` : key;
 
 		if ( isObject( baseValue ) &amp;&amp; isObject( incrementalValue ) ) {
 			mergeObjects( baseValue, incrementalValue, mergeValues, path );
@@ -497,6 +530,96 @@ function mergeObjects( base, incremental, mergeValues, basePath = '' ) {
 }
 
 /**
+ * An error indicating that {@link queryFullPages} or {@link queryFullRevisions}
+ * encountered more consecutive empty responses (with no pages or revisions) than expected,
+ * as configured via {@link maxEmptyResponses}.
+ */
+class TooManyEmptyResponsesError extends Error {
+
+	/**
+	 * @param {number} limit The configured limit (the {@link maxEmptyResponses} parameter).
+	 */
+	constructor( limit ) {
+		super( `Encountered more than ${ limit } consecutive empty responses, aborting.` );
+
+		if ( Error.captureStackTrace ) {
+			Error.captureStackTrace( this, TooManyEmptyResponsesError );
+		}
+
+		this.name = 'TooManyEmptyResponsesError';
+
+		/**
+		 * The configured limit (the {@link maxEmptyResponses} parameter).
+		 *
+		 * @member {number}
+		 */
+		this.limit = limit;
+	}
+
+}
+
+/**
+ * Limit the number of consecutive empty API responses to follow during continuation.
+ *
+ * Depending on the request parameters and wiki content (and configuration),
+ * it is possible for {@link queryFullPages} or {@link queryFullRevisions}
+ * to receive a long, potentially unlimited stream of responses with no pages or revisions.
+ * This means that they may keep sending API requests forever,
+ * without any way for the caller to stop them.
+ * This function offers a “emergency brake” mechanism to avoid this situation:
+ * if too many *consecutive* empty responses are seen,
+ * a {@link TooManyEmptyResponsesError} will be thrown.
+ *
+ * To use this function,
+ * spread the value it returns into the request options,
+ * for example:
+ * ```
+ * const session = new Session( '...', {
+ *     formatversion: 2,
+ *     // other default params
+ * }, {
+ *     // other default options
+ *     ...maxEmptyResponses( 10 ),
+ * } );
+ * ```
+ * Or:
+ * ```
+ * for await ( const page of queryFullPages( session, {
+ *     // params
+ * }, { ...maxEmptyResponses( 25 ) } ) ) {
+ *     // handle each page
+ * }
+ * ```
+ *
+ * @param {number} limit The maximum number of empty responses to allow.
+ * You can specify Infinity to disable the limit.
+ * @return {Object} An object with (internal) request options.
+ */
+function maxEmptyResponses( limit = 10 ) {
+	if ( limit === Infinity ) {
+		return {
+			'm3api-query/handlePages': null,
+			'm3api-query/handleRevisions': null,
+		};
+	}
+	function handleListFn( list, session, params, options, state ) {
+		if ( list.length === 0 ) {
+			state.consecutiveEmptyResponses = ( state.consecutiveEmptyResponses || 0 ) + 1;
+			if ( state.consecutiveEmptyResponses > limit ) {
+				throw new TooManyEmptyResponsesError( limit );
+			}
+		} else {
+			state.consecutiveEmptyResponses = 0;
+		}
+		return list;
+	}
+	return {
+		'm3api-query/handlePages': handleListFn,
+		'm3api-query/handleRevisions': handleListFn,
+	};
+}
+
+/**
  * Compare two objects for sorting.
  *
  * @callback compareFn
@@ -505,6 +628,25 @@ function mergeObjects( base, incremental, mergeValues, basePath = '' ) {
  * @return {number} A number greater than zero if a is greater than b,
  * a number less than zero if a is less than b,
  * or zero to keep the original order of a and b.
+ */
+
+/**
+ * Handle a list (of pages or revisions).
+ *
+ * This type is used by {@link maxEmptyResponses};
+ * you can ignore it.
+ *
+ * @callback handleListFn
+ * @protected
+ * @param {Array} list The list as returned from the API and sorted.
+ * @param {Session} session The session the function was called with.
+ * @param {Object} params The params the function was called with.
+ * @param {Object} options The options the function was called with.
+ * @param {Object} state An initially object where the handle function may store
+ * any state it wants to preserve between calls,
+ * within the same {@link queryFullPages} / {@link queryFullRevisions} call.
+ * @return {Array|null|undefined} The list that should actually be yielded,
+ * or null/undefined to reuse the input list (which may have been modified in-place).
  */
 
 /**
@@ -536,12 +678,22 @@ function mergeObjects( base, incremental, mergeValues, basePath = '' ) {
  * &lt;code>( { revid: r1 }, { revid: r2 } ) => r1 - r2&lt;/code>
  * to sort revisions according to their revision ID (yield lower revision IDs first).
  * Defaults to null (no sorting).
+ * @property {handleListFn|null} ['m3api-query/handlePages']
+ * Internal option to handle a list of pages before yielding it from {@link queryFullPages}.
+ * Used by {@link maxEmptyResponses};
+ * using this option directly is strongly discouraged.
+ * @property {handleListFn|null} ['m3api-query/handleRevisions']
+ * Internal option to handle a list of pages before yielding it from {@link queryFullRevisions}.
+ * Used by {@link maxEmptyResponses};
+ * using this option directly is strongly discouraged.
  */
 
 Object.assign( DEFAULT_OPTIONS, {
 	'm3api-query/mergeValues': mergeValues,
 	'm3api-query/comparePages': null,
 	'm3api-query/compareRevisions': null,
+	'm3api-query/handlePages': null,
+	'm3api-query/handleRevisions': null,
 } );
 
 /**
@@ -904,12 +1056,15 @@ async function * queryFullPages(
 	const {
 		'm3api-query/mergeValues': mergeValues,
 		'm3api-query/comparePages': comparePages,
+		'm3api-query/handlePages': handlePages,
 	} = {
 		...DEFAULT_OPTIONS,
 		...session.defaultOptions,
 		...options,
 	};
+	const state = {}; // for handlePages
 
+	assertReturnsPages( params, 'queryFullPages' );
 	params = makeParams( params );
 	const reducer = ( batch, response ) => {
 		let pages = ( response.query || {} ).pages || [];
@@ -936,12 +1091,20 @@ async function * queryFullPages(
 		reducer,
 		initial,
 	) ) {
+		let pages = batch.values();
+
 		if ( comparePages !== null ) {
-			const pages = [ ...batch.values() ];
-			yield * pages.sort( comparePages );
-		} else {
-			yield * batch.values();
+			pages = [ ...pages ].sort( comparePages );
 		}
+
+		if ( handlePages !== null ) {
+			if ( !Array.isArray( pages ) ) {
+				pages = [ ...pages ];
+			}
+			pages = handlePages( pages, session, params, options, state ) || pages;
+		}
+
+		yield * pages;
 	}
 }
 
@@ -974,12 +1137,15 @@ async function * queryFullRevisions(
 ) {
 	const {
 		'm3api-query/compareRevisions': compareRevisions,
+		'm3api-query/handleRevisions': handleRevisions,
 	} = {
 		...DEFAULT_OPTIONS,
 		...session.defaultOptions,
 		...options,
 	};
+	const state = {}; // for handleRevisions
 
+	assertReturnsPages( params, 'queryFullRevisions' );
 	params = makeParamsWithString( 'prop', params, 'revisions' );
 	options = {
 		dropTruncatedResultWarning: true,
@@ -988,7 +1154,7 @@ async function * queryFullRevisions(
 
 	for await ( const response of session.requestAndContinue( params, options ) ) {
 		const query = response.query || {};
-		const batch = [];
+		let batch = [];
 
 		for ( const revision of Object.values( query.badrevids || {} ) ) {
 			batch.push( missingRevision( revision, response, query ) );
@@ -1006,10 +1172,14 @@ async function * queryFullRevisions(
 		}
 
 		if ( compareRevisions !== null ) {
-			yield * batch.sort( compareRevisions );
-		} else {
-			yield * batch;
+			batch = batch.sort( compareRevisions );
 		}
+
+		if ( handleRevisions !== null ) {
+			batch = handleRevisions( batch, session, params, options, state ) || batch;
+		}
+
+		yield * batch;
 	}
 }
 
@@ -1019,6 +1189,8 @@ export {
 	getResponsePageByPageId,
 	getResponseRevisionByRevisionId,
 	mergeValues,
+	TooManyEmptyResponsesError,
+	maxEmptyResponses,
 	queryPartialPageByTitle,
 	queryIncrementalPageByTitle,
 	queryFullPageByTitle,
@@ -1040,13 +1212,13 @@ export {
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#getResponsePageByPageId">getResponsePageByPageId</a></li><li><a href="global.html#getResponsePageByTitle">getResponsePageByTitle</a></li><li><a href="global.html#getResponseRevisionByRevisionId">getResponseRevisionByRevisionId</a></li><li><a href="global.html#missingRevision">missingRevision</a></li><li><a href="global.html#pageOfRevision">pageOfRevision</a></li><li><a href="global.html#queryFullPageByPageId">queryFullPageByPageId</a></li><li><a href="global.html#queryFullPageByTitle">queryFullPageByTitle</a></li><li><a href="global.html#queryFullPages">queryFullPages</a></li><li><a href="global.html#queryFullRevisionByRevisionId">queryFullRevisionByRevisionId</a></li><li><a href="global.html#queryFullRevisions">queryFullRevisions</a></li><li><a href="global.html#queryIncrementalPageByPageId">queryIncrementalPageByPageId</a></li><li><a href="global.html#queryIncrementalPageByTitle">queryIncrementalPageByTitle</a></li><li><a href="global.html#queryPartialPageByPageId">queryPartialPageByPageId</a></li><li><a href="global.html#queryPartialPageByTitle">queryPartialPageByTitle</a></li><li><a href="global.html#queryPotentialRevisionByRevisionId">queryPotentialRevisionByRevisionId</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="TooManyEmptyResponsesError.html">TooManyEmptyResponsesError</a></li></ul><h3>Global</h3><ul><li><a href="global.html#getResponsePageByPageId">getResponsePageByPageId</a></li><li><a href="global.html#getResponsePageByTitle">getResponsePageByTitle</a></li><li><a href="global.html#getResponseRevisionByRevisionId">getResponseRevisionByRevisionId</a></li><li><a href="global.html#maxEmptyResponses">maxEmptyResponses</a></li><li><a href="global.html#missingRevision">missingRevision</a></li><li><a href="global.html#pageOfRevision">pageOfRevision</a></li><li><a href="global.html#queryFullPageByPageId">queryFullPageByPageId</a></li><li><a href="global.html#queryFullPageByTitle">queryFullPageByTitle</a></li><li><a href="global.html#queryFullPages">queryFullPages</a></li><li><a href="global.html#queryFullRevisionByRevisionId">queryFullRevisionByRevisionId</a></li><li><a href="global.html#queryFullRevisions">queryFullRevisions</a></li><li><a href="global.html#queryIncrementalPageByPageId">queryIncrementalPageByPageId</a></li><li><a href="global.html#queryIncrementalPageByTitle">queryIncrementalPageByTitle</a></li><li><a href="global.html#queryPartialPageByPageId">queryPartialPageByPageId</a></li><li><a href="global.html#queryPartialPageByTitle">queryPartialPageByTitle</a></li><li><a href="global.html#queryPotentialRevisionByRevisionId">queryPotentialRevisionByRevisionId</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a>
 </footer>
 
 <script>document.addEventListener('DOMContentLoaded', function () { prettyPrint(); });</script>
