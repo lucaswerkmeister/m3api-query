@@ -5,6 +5,7 @@ include:
 stages:
   - test
   - release
+  - publish-docs
 
 test-job:
   extends: .test-job
@@ -20,3 +21,6 @@ publish-job:
 
 doc-job:
   extends: .doc-job
+
+publish-doc-job:
+  extends: .publish-doc-job

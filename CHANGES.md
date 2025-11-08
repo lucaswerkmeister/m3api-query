@@ -16,6 +16,10 @@ but this file may sometimes contain later improvements (e.g. typo fixes).
 
 ## next (not yet released)
 
+- m3api-query documentation is now published at
+  <https://doc.wikimedia.org/m3api/m3api-query/>.
+  (The previous location, GitHub Pages, is kept for now,
+  but will probably be changed to a redirect sooner or later.)
 - `queryFullPages()` and `queryFullRevisions()` will now error out if called with invalid parameters
   (usually: using a “list”-type module as a `list` rather than a `generator`),
   instead of potentially sending a neverending stream of internal continuation requests
