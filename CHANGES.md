@@ -14,7 +14,7 @@ but this file may sometimes contain later improvements (e.g. typo fixes).
 
 -->
 
-## next (not yet released)
+## v1.1.0 (2025-11-08)
 
 - m3api-query documentation is now published at
   <https://doc.wikimedia.org/m3api/m3api-query/>.
