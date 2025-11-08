@@ -34,6 +34,7 @@ but this file may sometimes contain later improvements (e.g. typo fixes).
   The initial components of the internal interface
   are the new `m3api-query/handlePages` and `m3api-query/handleRevisions` request options,
   which are used by `maxEmptyResponses()` (see above).
+- Updated dependencies.
 
 ## v1.0.1 (2025-09-15)
 
